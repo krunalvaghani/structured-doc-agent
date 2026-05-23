@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Document Extractor</title>
+  <script>
+    (function () {
+      var saved = localStorage.getItem("extractor-theme");
+      var theme = saved === "light" || saved === "dark"
+        ? saved
+        : (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div class="header-copy">
+        <h1>Document Extractor</h1>
+        <p>Upload a PDF, define fields, watch the agent work, get JSON.</p>
+      </div>
+      <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Switch theme">Light mode</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="panel">
+      <h2>1. Document</h2>
+      <label class="demo-select-row">
+        Demo document
+        <select id="demo-select"></select>
+      </label>
+      <div id="drop-zone" class="drop-zone">
+        <p>Drag & drop PDF or image, or click to browse</p>
+        <input type="file" id="file-input" accept=".pdf,.png,.jpg,.jpeg,.webp" hidden />
+      </div>
+      <p id="file-info" class="muted"></p>
+
+      <h2>2. Fields to extract</h2>
+      <details class="field-help">
+        <summary>How field keys work</summary>
+        <p class="muted"><strong>Label</strong> = results display · <strong>Key</strong> = JSON name (<code>company_name</code>) · <strong>Description</strong> = optional hint for the agent</p>
+      </details>
+      <div class="toolbar">
+        <button type="button" id="btn-add-field">+ Add field</button>
+        <button type="button" id="btn-add-list">+ Add list</button>
+      </div>
+      <div id="field-builder"></div>
+
+      <h2>3. Model & backend</h2>
+      <label class="demo-select-row">
+        Implementation
+        <select id="backend-select">
+          <option value="api">OpenRouter API (tools)</option>
+          <option value="agent">Agent SDK (Claude Code)</option>
+        </select>
+      </label>
+      <label class="demo-select-row">
+        Extraction model
+        <select id="model-select">
+          <option value="">Loading models…</option>
+        </select>
+      </label>
+
+      <div class="actions">
+        <button type="button" id="btn-extract" class="primary" disabled>Extract</button>
+        <button type="button" id="btn-sample">Show sample result</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Event history</h2>
+      <div class="activity-panel">
+        <ul id="activity-feed" class="activity-feed">
+          <li class="muted history-empty">No events yet</li>
+        </ul>
+      </div>
+
+      <h2>Results</h2>
+      <div id="results"></div>
+      <details>
+        <summary>Raw JSON</summary>
+        <pre id="raw-json"></pre>
+      </details>
+
+      <footer id="cost-footer" class="cost-footer">Cost: —</footer>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

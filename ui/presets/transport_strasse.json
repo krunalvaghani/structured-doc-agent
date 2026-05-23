@@ -1,0 +1,84 @@
+{
+  "fields": [
+    {
+      "name": "carrier_company",
+      "label": "Carrier Company",
+      "type": "string",
+      "description": "Railway or carrier issuing the transport order (header block, e.g. ERS Railways GmbH)"
+    },
+    {
+      "name": "transport_company",
+      "label": "Transport Company",
+      "type": "string",
+      "description": "Haulier / transport company receiving the order (e.g. Haller Transport GmbH)"
+    },
+    {
+      "name": "auftrag_nr",
+      "label": "Auftrag Nr",
+      "type": "string",
+      "description": "Order number after 'Auftrag:' (e.g. S260025954/NUEHAM)"
+    },
+    {
+      "name": "service_type",
+      "label": "Service Type",
+      "type": "string",
+      "description": "Service description line (e.g. Leerumfuhr ex CDN)"
+    },
+    {
+      "name": "iso_size",
+      "label": "ISO Size",
+      "type": "integer",
+      "description": "ISO-Größe value from Ladeeinheit section"
+    },
+    {
+      "name": "iso_type",
+      "label": "ISO Type",
+      "type": "string",
+      "description": "ISO-Typ code from Ladeeinheit section (e.g. G1)"
+    },
+    {
+      "name": "tara_kg",
+      "label": "Tara (kg)",
+      "type": "float",
+      "description": "Tara weight in kg from Ladeeinheit; convert European comma decimal if needed"
+    },
+    {
+      "name": "gross_kg",
+      "label": "Gross (kg)",
+      "type": "float",
+      "description": "Brutto weight in kg from Ladeeinheit"
+    },
+    {
+      "name": "billing_reference",
+      "label": "Billing Reference",
+      "type": "string",
+      "description": "Abrechnung reference number at bottom of document"
+    },
+    {
+      "name": "route_stops",
+      "label": "Route Stops",
+      "type": "array",
+      "description": "Each row in the Ort/Ankunft Soll table; do not invent stops",
+      "item_fields": [
+        {
+          "name": "stop_number",
+          "label": "Stop #",
+          "type": "integer",
+          "description": "Sequence number in the route table (1, 2, …)"
+        },
+        {
+          "name": "location_name",
+          "label": "Location",
+          "type": "string",
+          "description": "Depot or terminal name for this stop"
+        },
+        {
+          "name": "arrival_scheduled",
+          "label": "Arrival (scheduled)",
+          "type": "string",
+          "description": "Ankunft Soll date and time as shown on the document"
+        }
+      ]
+    }
+  ]
+}

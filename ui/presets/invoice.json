@@ -1,0 +1,67 @@
+{
+  "fields": [
+    {
+      "name": "invoice_number",
+      "label": "Invoice Number",
+      "type": "string",
+      "description": "Commercial invoice or document reference number, usually in the header"
+    },
+    {
+      "name": "consignee",
+      "label": "Consignee",
+      "type": "string",
+      "description": "Consignee or buyer name and address block on the invoice"
+    },
+    {
+      "name": "total_amount_usd",
+      "label": "Total Amount USD",
+      "type": "float",
+      "description": "Invoice total in USD; use the grand total, not line subtotals"
+    },
+    {
+      "name": "line_items",
+      "label": "Line Items",
+      "type": "array",
+      "description": "One row per product line in the invoice table; do not invent rows",
+      "item_fields": [
+        {
+          "name": "item_code",
+          "label": "Item Code",
+          "type": "string",
+          "description": "Product or SKU code column for each line"
+        },
+        {
+          "name": "description",
+          "label": "Description",
+          "type": "string",
+          "required": false,
+          "description": "Product description text for the line item"
+        },
+        {
+          "name": "quantity",
+          "label": "Quantity",
+          "type": "integer",
+          "description": "Quantity shipped or ordered for this line"
+        },
+        {
+          "name": "unit_price_usd",
+          "label": "Unit Price USD",
+          "type": "float",
+          "description": "Unit price in USD for one item on this line"
+        },
+        {
+          "name": "total_amount_usd",
+          "label": "Line Total USD",
+          "type": "float",
+          "description": "Line total amount in USD for this row"
+        },
+        {
+          "name": "hs_code",
+          "label": "HS Code",
+          "type": "string",
+          "description": "Harmonized System tariff code for the product line"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+# Python standard ignores
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.idea/
+*.egg-info/
+.eggs/
+dist/
+build/
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Jupyter Notebook and ipynb_checkpoints
+.ipynb_checkpoints
+
+# Environmental variable files
+.env
+.env.*
+*.env
+
+# VSCode settings
+.vscode/
+
+# macOS, system files
+.DS_Store
+
+# Test artifacts
+.coverage
+.cache
+.tox/
+.pytest_cache/
+htmlcov/
+
+# Logs
+*.log
+
+# Local and dev config
+local_settings.py
+
+# Ignore secret files
+secrets/
+
+# Ignore data or output folders (customize as needed)
+data/
+outputs/

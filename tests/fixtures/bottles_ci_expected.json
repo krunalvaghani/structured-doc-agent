@@ -1,0 +1,18 @@
+{
+  "status": "success",
+  "required_fields": [
+    "invoice_number",
+    "consignee",
+    "total_amount_usd",
+    "line_items"
+  ],
+  "line_item_fields": [
+    "item_code",
+    "description",
+    "quantity",
+    "unit_price_usd",
+    "total_amount_usd",
+    "hs_code"
+  ],
+  "notes": "Golden fixture for Bottles-CI-text.pdf commercial invoice demo"
+}

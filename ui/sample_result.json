@@ -1,0 +1,26 @@
+{
+  "status": "success",
+  "data": {
+    "invoice_number": "248053B-E",
+    "consignee": "Chrome Limited",
+    "total_amount_usd": 48060.0,
+    "line_items": [
+      {
+        "item_code": "I8RF350PBBEES",
+        "description": "Ion8, Recyclon, Bumble Bees, 350ml",
+        "quantity": 1008,
+        "unit_price_usd": 1.742,
+        "total_amount_usd": 1755.94,
+        "hs_code": "39233010"
+      }
+    ]
+  },
+  "usage": {
+    "input_tokens": 8,
+    "output_tokens": 4555,
+    "cost_usd": 0.133,
+    "by_stage": {},
+    "by_model": {}
+  },
+  "metadata": { "duration_ms": 58000 }
+}

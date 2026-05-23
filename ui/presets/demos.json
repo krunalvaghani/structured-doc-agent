@@ -1,0 +1,17 @@
+{
+  "default": "invoice",
+  "demos": [
+    {
+      "id": "invoice",
+      "label": "Commercial Invoice (text) — Bottles-CI-text.pdf",
+      "pdf": "/demo-files/Bottles-CI-text.pdf",
+      "preset": "presets/invoice.json"
+    },
+    {
+      "id": "test_image",
+      "label": "Image scan — Test-1-image.pdf",
+      "pdf": "/demo-files/Test-1-image.pdf",
+      "preset": "presets/transport_strasse.json"
+    }
+  ]
+}
