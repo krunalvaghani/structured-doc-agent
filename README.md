@@ -1,14 +1,16 @@
-# Extractor
+# Structured Doc Agent
 
 Agentic PDF/image extraction using the Claude Agent SDK and OpenRouter. Upload a document, define fields to extract, get validated JSON with live progress and cost tracking.
+
+**Repo:** [github.com/krunalvaghani/structured-doc-agent](https://github.com/krunalvaghani/structured-doc-agent)
 
 **Docs:** [ARCHITECTURE.md](ARCHITECTURE.md) (current design) · [SPEC.md](SPEC.md) (original spec)
 
 ## Quick start
 
 ```bash
-git clone <your-repo-url>
-cd extractor
+git clone git@github.com:krunalvaghani/structured-doc-agent.git
+cd structured-doc-agent
 python -m venv .venv && source .venv/bin/activate   # or: conda activate voyfai
 pip install -e ".[dev]"
 
@@ -69,8 +71,8 @@ extractor serve --reload --port 8001
 ### Docker
 
 ```bash
-docker build -t extractor .
-docker run --rm -p 8000:8000 --env-file .env extractor
+docker build -t structured-doc-agent .
+docker run --rm -p 8000:8000 --env-file .env structured-doc-agent
 ```
 
 Open **http://127.0.0.1:8000/ui**. LLM calls require `OPENROUTER_API_KEY` or `ANTHROPIC_API_KEY` in `.env`.

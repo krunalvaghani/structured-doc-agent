@@ -230,7 +230,7 @@ Use the **conda env `voyfai`**.
 
 ```bash
 # One-time setup
-cd /home/krunal/python-workspace/voyfai/extractor
+cd structured-doc-agent
 conda run -n voyfai uv pip install -e ".[dev]"
 
 # Run API server

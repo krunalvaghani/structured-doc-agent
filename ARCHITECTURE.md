@@ -1,6 +1,6 @@
-# Extractor — Architecture Overview
+# Structured Doc Agent — Architecture Overview
 
-A **portfolio / interview reference** for an agentic document extraction system: PDFs and images in, validated JSON out — with live progress, cost tracking, and production-minded design choices.
+An agentic document extraction system: PDFs and images in, validated JSON out — with live progress, cost tracking, and production-minded design choices.
 
 This document stays **high-level**. It explains *what* was built and *why*, so you can walk an interviewer through the system without opening the codebase.
 

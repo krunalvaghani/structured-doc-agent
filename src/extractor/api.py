@@ -18,7 +18,7 @@ from extractor.models import models_for_provider
 from extractor.runner import new_job_id, parse_field_spec_json, run_extraction
 from extractor.types import ExtractionOptions, ExtractionRequest
 
-app = FastAPI(title="Extractor", version="0.1.0")
+app = FastAPI(title="Structured Doc Agent", version="0.1.0")
 
 UI_DIR = PACKAGE_ROOT / "ui"
 if UI_DIR.is_dir():
@@ -198,4 +198,4 @@ async def extract_stream(
 
 @app.get("/")
 async def root() -> dict[str, str]:
-    return {"message": "Extractor API", "ui": "/ui"}
+    return {"message": "Structured Doc Agent API", "ui": "/ui"}

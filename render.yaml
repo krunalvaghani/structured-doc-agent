@@ -2,7 +2,7 @@
 # Deploy: Dashboard → New → Blueprint → connect repo, or `render blueprint launch`
 services:
   - type: web
-    name: extractor
+    name: structured-doc-agent
     runtime: docker
     plan: starter
     healthCheckPath: /health

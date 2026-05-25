@@ -20,8 +20,8 @@ class OpenRouterClient:
         return {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
-            "HTTP-Referer": "https://github.com/voyfai/extractor",
-            "X-Title": "extractor",
+            "HTTP-Referer": "https://github.com/krunalvaghani/structured-doc-agent",
+            "X-Title": "structured-doc-agent",
         }
 
     async def chat(
