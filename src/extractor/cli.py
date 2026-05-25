@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from extractor.config import get_settings
 from extractor.cost import format_cost_line
 from extractor.events import ProgressEmitter
-from extractor.logger import configure_logging, get_logger
+from extractor.logger import configure_logging, get_logger, resolve_log_level, uvicorn_log_config
 from extractor.runner import parse_field_spec_json, run_extraction
 from extractor.types import ExtractionOptions, ExtractionRequest
 
@@ -79,8 +79,9 @@ def _serve_cli(args: argparse.Namespace) -> int:
     import uvicorn
 
     host, port = resolve_serve_bind(host=args.host, port=args.port)
-    configure_logging(level="INFO")
-    log.info("starting server http://%s:%s/ui", host, port)
+    level = resolve_log_level()
+    configure_logging(level=level, force=True)
+    log.info("starting server http://%s:%s/ui (log_level=%s)", host, port, level)
     print(f"Extractor API: http://{host}:{port}", file=sys.stderr)
     print(f"Demo UI:       http://{host}:{port}/ui", file=sys.stderr)
     print(f"Health:        http://{host}:{port}/health", file=sys.stderr)
@@ -89,7 +90,8 @@ def _serve_cli(args: argparse.Namespace) -> int:
         host=host,
         port=port,
         reload=args.reload,
-        log_level="info",
+        log_config=uvicorn_log_config(level),
+        access_log=True,
     )
     return 0
 

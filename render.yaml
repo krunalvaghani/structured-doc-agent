@@ -17,6 +17,8 @@ services:
         value: api
       - key: EXTRACTOR_HOST
         value: 0.0.0.0
+      - key: LOG_LEVEL
+        value: INFO
       - key: EXTRACTOR_RATE_LIMIT_ENABLED
         value: "true"
       - key: EXTRACTOR_RATE_LIMIT_PER_IP

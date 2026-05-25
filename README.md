@@ -164,4 +164,6 @@ The app reads **`PORT`** from the environment (Render injects this automatically
 
 Rate limits are **off by default** locally (`EXTRACTOR_RATE_LIMIT_ENABLED=false`). On a public deploy, enable them to cap OpenRouter spend: **5 extractions per IP per hour** and **20 globally per UTC day**. Check remaining quota with `GET /v1/quota`; extraction returns **429** with a JSON body when exhausted (no client IP is exposed). GitHub Actions CI runs tests separately; no extra workflow is required for deploy.
 
+**Logs on Render:** open your service → **Logs**. Set `LOG_LEVEL=DEBUG` temporarily for verbose pipeline logs. Startup logs include `app_root`, `ui_mounted`, and config summary.
+
 See [ARCHITECTURE.md](ARCHITECTURE.md) for system design.

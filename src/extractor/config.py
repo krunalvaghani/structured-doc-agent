@@ -35,10 +35,6 @@ DEFAULT_RATE_LIMIT_PER_IP = 5
 DEFAULT_RATE_LIMIT_PER_IP_WINDOW_SECONDS = 3600
 DEFAULT_RATE_LIMIT_GLOBAL_DAILY = 20
 
-PACKAGE_ROOT = Path(__file__).resolve().parents[2]
-STORAGE_ROOT = PACKAGE_ROOT / "storage"
-UPLOADS_ROOT = STORAGE_ROOT / "uploads"
-
 
 def env_bool(name: str, default: bool = False) -> bool:
     raw = os.environ.get(name)
@@ -53,6 +49,25 @@ def _env_str(name: str) -> str | None:
         return None
     stripped = raw.strip()
     return stripped or None
+
+
+def resolve_app_root() -> Path:
+    """Return directory containing ``ui/`` and ``storage/`` (repo root locally, ``/app`` in Docker)."""
+    explicit = _env_str("EXTRACTOR_APP_ROOT")
+    if explicit:
+        return Path(explicit).resolve()
+    dev_root = Path(__file__).resolve().parents[2]
+    if (dev_root / "ui").is_dir():
+        return dev_root
+    docker_root = Path("/app")
+    if (docker_root / "ui").is_dir():
+        return docker_root
+    return dev_root
+
+
+PACKAGE_ROOT = resolve_app_root()
+STORAGE_ROOT = PACKAGE_ROOT / "storage"
+UPLOADS_ROOT = STORAGE_ROOT / "uploads"
 
 
 def parse_extraction_backend(raw: str | None) -> ExtractionBackend:

@@ -23,8 +23,11 @@ from extractor.parsing.strategy import document_needs_vision
 from extractor.completeness import check_list_completeness
 from extractor.schema_builder import describe_field_spec, field_spec_to_json_schema
 from extractor.schema_validate import validation_errors
+from extractor.logger import get_logger
 from extractor.types import ExtractionRequest, ExtractionResult, FieldSpec, UsageSummary
 from extractor.verification import verify_extracted_data
+
+log = get_logger(__name__)
 
 
 def new_job_id() -> str:
@@ -67,6 +70,7 @@ async def run_extraction(
     await emit(pipeline_event("run_started", "Starting extraction…"))
 
     if not settings.llm_configured:
+        log.error("job_id=%s extraction aborted: LLM not configured", job_id)
         result = ExtractionResult(
             status="failed",
             error="LLM API key is not configured (set OPENROUTER_API_KEY or ANTHROPIC_API_KEY)",
@@ -146,6 +150,16 @@ async def run_extraction(
             use_openrouter=settings.use_openrouter,
             default_model=settings.extractor_model,
             vision_model=settings.vision_model,
+        )
+        log.info(
+            "job_id=%s document=%s pages=%s backend=%s model=%s vision=%s fallback=%s",
+            job_id,
+            path.name,
+            page_count,
+            backend,
+            model_choice.effective_id,
+            needs_vision,
+            model_choice.vision_fallback,
         )
         extraction_model_option = (
             model_choice.effective_id if model_choice.vision_fallback else request.options.model
@@ -302,9 +316,18 @@ async def run_extraction(
         )
         JOB_STORE.complete(job_id, result.to_dict())
         await emitter.close()
+        log.info(
+            "job_id=%s finished status=%s cost_usd=%.4f duration_ms=%.0f warnings=%d",
+            job_id,
+            status,
+            total_usage.cost_usd,
+            duration_ms,
+            len(warnings),
+        )
         return result
 
     except Exception as exc:
+        log.exception("job_id=%s extraction failed", job_id)
         total_usage = merge_usage(usages) if usages else UsageSummary.empty()
         result = ExtractionResult(
             status="failed",

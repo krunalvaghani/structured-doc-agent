@@ -5,7 +5,20 @@ from __future__ import annotations
 import os
 from unittest.mock import patch
 
-from extractor.config import Settings, env_bool
+from extractor.config import PACKAGE_ROOT, Settings, env_bool, resolve_app_root
+
+
+def test_package_root_includes_ui() -> None:
+    assert (PACKAGE_ROOT / "ui" / "index.html").is_file()
+    assert (PACKAGE_ROOT / "storage" / "Bottles-CI-text.pdf").is_file()
+
+
+def test_resolve_app_root_honors_env(tmp_path) -> None:
+    ui = tmp_path / "ui"
+    ui.mkdir()
+    (ui / "index.html").write_text("<html></html>", encoding="utf-8")
+    with patch.dict(os.environ, {"EXTRACTOR_APP_ROOT": str(tmp_path)}, clear=False):
+        assert resolve_app_root() == tmp_path.resolve()
 
 
 def test_env_bool_truthy() -> None:

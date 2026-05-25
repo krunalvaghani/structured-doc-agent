@@ -15,6 +15,7 @@ COPY storage/Bottles-CI-text.pdf storage/Test-1-image.pdf ./storage/
 RUN pip install --no-cache-dir .
 
 ENV EXTRACTOR_HOST=0.0.0.0
+ENV EXTRACTOR_APP_ROOT=/app
 
 # Render and other PaaS hosts inject PORT at runtime; local default is 8000.
 EXPOSE 8000

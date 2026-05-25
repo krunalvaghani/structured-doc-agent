@@ -82,6 +82,7 @@ Copy `.env.example` → `.env`. Never commit secrets.
 | `EXTRACTOR_SCHEMA_MODEL` | Schema planner model (NL prompt mode) |
 | `EXTRACTOR_VISION_MODEL` | Override vision fallback |
 | `PORT` | Bind port for PaaS (read by `cli.py`; default 8000) |
+| `LOG_LEVEL` | `DEBUG`, `INFO`, `WARNING`, … (default `INFO`; logs to stdout when `PORT` is set) |
 | `EXTRACTOR_RATE_LIMIT_ENABLED` | `false` locally; set `true` on public deploy |
 | `EXTRACTOR_RATE_LIMIT_PER_IP` | Per-IP extractions per window (default `5`) |
 | `EXTRACTOR_RATE_LIMIT_PER_IP_WINDOW_SECONDS` | Rolling window in seconds (default `3600`) |

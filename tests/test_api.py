@@ -38,6 +38,18 @@ def test_get_job_not_found(client: TestClient) -> None:
     assert res.status_code == 404
 
 
+def test_ui_index(client: TestClient) -> None:
+    res = client.get("/ui/")
+    assert res.status_code == 200
+    assert "text/html" in res.headers.get("content-type", "")
+
+
+def test_demo_pdf(client: TestClient) -> None:
+    res = client.get("/demo-files/Bottles-CI-text.pdf")
+    assert res.status_code == 200
+    assert res.headers.get("content-type", "").startswith("application/pdf")
+
+
 @patch("extractor.api.run_extraction", new_callable=AsyncMock)
 def test_extract_sync(mock_run: AsyncMock, client: TestClient, tmp_path) -> None:
     pdf = tmp_path / "test.pdf"
