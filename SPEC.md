@@ -2,23 +2,23 @@
 
 > **Status:** Implemented — this document is the **original design spec** (historical reference).
 >
-> The shipped system differs in several ways: **OpenRouter routing**, a **multi-model registry**, **dual LLM backends** (Agent SDK + OpenRouter API), and **vision auto-fallback**. For the current architecture and interview walkthrough, see **[ARCHITECTURE.md](ARCHITECTURE.md)**.
+> The shipped system differs in several ways: **OpenRouter routing**, a **multi-model registry**, **dual LLM backends** (Agent SDK + OpenRouter API), and **vision auto-fallback**. For the current architecture, see **[ARCHITECTURE.md](ARCHITECTURE.md)**.
 
-## Vision & Interview Showcase
+## Vision
 
-This project is a **portfolio / interview demo** that shows how to build a production-minded agentic extraction system — not a toy script.
+Structured Doc Agent is a **production-minded agentic extraction system** — schema-flexible, observable, and designed for real document workflows (not a single-domain parser).
 
-**The story you tell in the interview:**
+**Core user flow:**
 
 1. User uploads any PDF (invoice, receipt, form, report).
 2. User defines **what to extract** — a few single fields, or a **repeating list** (e.g. line items with description, quantity, total — but fields can be anything).
-3. A **Claude Agent SDK** agent reads the document, picks tools (text layer vs page rendering), and returns validated JSON.
-4. The UI shows **live progress** — which stage is running, which tools the agent called, tokens/cost accumulating — so the interviewer sees the agent working, not a black box spinner.
+3. An LLM agent reads the document, picks tools (text layer vs page rendering), and returns validated JSON.
+4. The UI shows **live progress** — which stage is running, which tools the agent called, tokens/cost accumulating.
 5. Results render as a clean table (scalar fields + expandable list rows) with a cost summary at the end.
 
 ```mermaid
 flowchart LR
-  subgraph UI["Demo UI (Phase 2)"]
+  subgraph UI["Web UI (Phase 2)"]
     U1[Upload PDF]
     U2[Define fields]
     U3[Live activity feed]
@@ -39,12 +39,12 @@ flowchart LR
   G2 -->|JSON + usage| U4
 ```
 
-**Phased delivery for the demo:**
+**Phased delivery:**
 
-| Phase | Goal | Interview value |
-|-------|------|-------------------|
-| **Phase 1** | Backend pipeline — API, agent, tools, usage/cost | "Here's the engine" |
-| **Phase 2** | Simple demo UI — upload, field builder, live feed, results | "Here's the full product experience" |
+| Phase | Goal | Outcome |
+|-------|------|---------|
+| **Phase 1** | Backend pipeline — API, agent, tools, usage/cost | Runnable engine via API and CLI |
+| **Phase 2** | Web UI — upload, field builder, live feed, results | Full product experience in the browser |
 
 Phase 1 must expose a **streaming API** so Phase 2 can show live progress without rework.
 
@@ -54,7 +54,7 @@ Phase 1 must expose a **streaming API** so Phase 2 can show live progress withou
 
 Build a **robust, schema-flexible extraction pipeline** where a user submits any **PDF** (single or multi-page) or **image** and defines what to extract — as natural language, a **field spec** (UI-friendly), or raw JSON Schema. A **Claude Agent SDK** agent returns **validated JSON** matching that definition.
 
-This is a **general-purpose extractor** — not locked to a single domain schema (unlike `interview/` invoices or `pipeline/` transport orders).
+This is a **general-purpose extractor** — not locked to a single domain schema (invoices, transport orders, forms, etc.).
 
 ### User stories
 
@@ -72,12 +72,12 @@ This is a **general-purpose extractor** — not locked to a single domain schema
 7. As a user or engineer, every completed run shows **token usage and estimated cost** broken down by stage and model (Haiku vs Sonnet).
 8. As an engineer, I can **select which model** runs each stage — Haiku for speed/cost, Sonnet for accuracy — via env vars, CLI flags, or API options.
 
-**Demo UI (Phase 2 — interview showcase)**
+**Web UI (Phase 2)**
 
-9. As a demo user, I drag-and-drop a PDF and visually add fields: single values or a **repeating list** with custom sub-columns.
-10. As a demo user, I watch a **live activity panel** while extraction runs — stages, tool calls, partial progress — not just a loading spinner.
-11. As a demo user, I see extracted data in a readable **results view** (key-value for scalars, table for lists) plus total tokens and cost.
-12. As an interviewer, I can follow the agent's reasoning path (which tools, which pages) to assess system design quality.
+9. As a user, I drag-and-drop a PDF and visually add fields: single values or a **repeating list** with custom sub-columns.
+10. As a user, I watch a **live activity panel** while extraction runs — stages, tool calls, partial progress — not just a loading spinner.
+11. As a user, I see extracted data in a readable **results view** (key-value for scalars, table for lists) plus total tokens and cost.
+12. As a user, I can follow the agent's reasoning path (which tools, which pages) in the activity feed.
 
 ### What "agentic" means here
 
@@ -115,7 +115,7 @@ flowchart TD
 | **Custom capabilities** | In-process MCP tools via `@tool` + `create_sdk_mcp_server` |
 | **LLM routing** | Anthropic models only (no LiteLLM in v1) |
 | **Primary interface (Phase 1)** | REST API (FastAPI) + CLI wrapper |
-| **Demo UI (Phase 2)** | Simple web app — upload, field builder, live feed, results |
+| **Web UI (Phase 2)** | Simple web app — upload, field builder, live feed, results |
 | **Schema input** | **Field spec** (UI-friendly, default for demo) **or** NL prompt **or** JSON Schema |
 | **Live progress** | Dual-source SSE — pipeline + agent + tool events; L1–L4 fallbacks |
 | **Documents** | Single document per request in v1 |
@@ -156,15 +156,15 @@ Callers override defaults per request via CLI flags or API `options.model` / `op
 
 ## ASSUMPTIONS
 
-1. **Runtime:** Python 3.11+, conda env `voyfai` (same as other voyfai projects).
-2. **Purpose:** Interview portfolio demo — polish and reliability matter for live walkthroughs.
+1. **Runtime:** Python 3.11+, conda env `voyfai` (or any Python 3.11+ venv).
+2. **Purpose:** Production-minded document extraction — reliability, observability, and schema flexibility matter.
 3. **Input (Phase 1):** Local file upload — PDF and common images (PNG, JPG, JPEG, WEBP, TIFF).
-4. **Field definition:** UI field spec (scalar + repeating lists) is the primary demo path; NL prompt is secondary.
-5. **Output:** JSON matching field spec — scalars + arrays; provenance deferred to post-interview.
+4. **Field definition:** UI field spec (scalar + repeating lists) is the primary path; NL prompt is secondary.
+5. **Output:** JSON matching field spec — scalars + arrays; field-level provenance deferred to a future release.
 6. **Documents:** Stored transiently in `storage/uploads/` during processing; deleted after TTL (24h).
-7. **Secrets:** Never committed; `ANTHROPIC_API_KEY` from env / `.env`.
+7. **Secrets:** Never committed; API keys from env / `.env`.
 8. **Headless operation:** API and CLI run without interactive permission prompts.
-9. **Reuse:** Parsing patterns from `interview/document_parser.py` (text layer + vision fallback), exposed as agent tools.
+9. **Parsing:** PDF text layer + vision fallback (PyMuPDF render), exposed as agent tools.
 
 → Correct assumptions before implementation if any are wrong.
 
@@ -209,7 +209,7 @@ Optional thin post-validation (Pydantic normalizers for amounts, dates) may run 
 | PDF render | `pymupdf` (fitz) |
 | Images | Direct input (PNG, JPG, JPEG, WEBP, TIFF) |
 | Testing | `pytest` |
-| Demo UI (Phase 2) | React or plain HTML/JS — served by FastAPI static files or Vite dev server |
+| Web UI (Phase 2) | React or plain HTML/JS — served by FastAPI static files or Vite dev server |
 | Real-time updates | Server-Sent Events (SSE) from FastAPI |
 | Packaging | `pyproject.toml`, package name `extractor` |
 
@@ -400,7 +400,7 @@ Tools are defined with `@tool`, wrapped in `create_sdk_mcp_server`, and register
 3. **Images:** Passed directly; agent inspects via rendered content or file path context.
 4. **Tables:** Preserve structure in tool output (markdown-like tables).
 
-Reuse logic from `interview/document_parser.py` where applicable.
+Reuse the same parsing approach (text layer + vision fallback) inside agent tools.
 
 ### Schema handling
 
@@ -452,7 +452,7 @@ Schema planner — lightweight `query()` (Haiku, no tools) turns user prompt int
 
 Skip planner and field spec; pass schema directly to `output_format`.
 
-**Priority for interview demo:** Mode A (field spec) primary — most impressive and predictable in a live demo. Mode B as "quick extract" fallback.
+**Default priority:** Mode A (field spec) for the web UI — deterministic schema, predictable runs. Mode B as quick extract fallback.
 
 ---
 
@@ -479,7 +479,7 @@ flowchart TD
   end
   Pipeline --> Out
   Agent --> Out
-  Out --> UI[Demo UI activity feed]
+  Out --> UI[Web UI activity feed]
 ```
 
 ### Design principle
@@ -490,7 +490,7 @@ flowchart TD
 | **`agent`** (Claude SDK) | Best-effort — depends on SDK message stream | Which tools Claude chose, reasoning snippets, token stream |
 | **`tool`** (ours, inside MCP handlers) | **Always works** when agent calls our tools | Page 2 of 5 rendered, 1,240 chars extracted |
 
-The UI renders all three with a small source badge so the interviewer can see *our orchestration* and *the agent's decisions* separately.
+The UI renders all three with a small source badge so operators can see *pipeline orchestration* and *agent decisions* separately.
 
 ---
 
@@ -514,7 +514,7 @@ class ProgressEmitter:
     async def subscribe(self) -> AsyncIterator[ProgressEvent]: ...
 ```
 
-Implement as an in-memory async queue per job (`job_id`). No external Redis required for the demo.
+Implement as an in-memory async queue per job (`job_id`). No external Redis required for v1.
 
 ---
 
@@ -730,9 +730,9 @@ Parallel tool calls show as grouped entries. Heartbeat lines fade or use a subtl
 
 ---
 
-## Demo UI (Phase 2)
+## Web UI (Phase 2)
 
-Simple, polished single-page app — no auth, no accounts. Optimized for **5-minute interview walkthrough**.
+Simple, polished single-page app — no auth, no accounts. Optimized for **quick onboarding and daily use**.
 
 ### Screens / sections (one page)
 
@@ -753,13 +753,13 @@ Simple, polished single-page app — no auth, no accounts. Optimized for **5-min
 | Preset templates | "Invoice" (number, date, vendor, line items) — one-click demo setup |
 | Field spec JSON | Advanced toggle to edit raw `field_spec` JSON |
 
-### Interview demo script (suggested)
+### Example workflow
 
 1. Load preset "Invoice" template → show field spec.
-2. Upload `Bottles-CI.pdf`.
-3. Hit Extract → activity feed shows agent analyzing, rendering pages, extracting.
+2. Upload `Bottles-CI-text.pdf`.
+3. Run Extract → activity feed shows agent analyzing, rendering pages, extracting.
 4. Results table populates; expand line items.
-5. Point to cost footer — Haiku vs Sonnet tradeoff.
+5. Review cost footer — model and token usage by stage.
 6. (Optional) Switch to NL prompt mode for ad-hoc extraction.
 
 ### UI tech (keep it simple)
@@ -989,7 +989,7 @@ ClaudeAgentOptions(
 
 ## Code Style
 
-Follow voyfai conventions from `interview/AGENTS.md`:
+Follow project conventions in `AGENTS.md`:
 
 ```python
 from extractor.logger import get_logger
@@ -1073,7 +1073,7 @@ def extract_pdf_text(path: Path) -> str:
 | **Live progress (Phase 1 API)** | SSE emits pipeline + tool events always; agent events when SDK allows |
 | **Progress fallback** | UI never blank — L3 pipeline-only + heartbeat works without agent stream |
 | **Poll fallback (L4)** | `GET /v1/jobs/{job_id}` returns stage/message if SSE drops |
-| **Demo UI (Phase 2)** | Upload → define fields → live feed → results + cost in < 2 min demo flow |
+| **Web UI (Phase 2)** | Upload → define fields → live feed → results + cost in a typical session |
 
 ---
 
@@ -1089,7 +1089,7 @@ def extract_pdf_text(path: Path) -> str:
 | CLI | Mobile layout |
 | Usage/cost on every run | |
 
-### Phase 2 — Interview demo UI
+### Phase 2 — Web UI
 
 | In scope | Out of scope |
 |----------|--------------|
@@ -1098,7 +1098,7 @@ def extract_pdf_text(path: Path) -> str:
 | Results table + cost footer | Complex theming |
 | Invoice preset template | Many preset templates |
 
-### Future (post-interview)
+### Future releases
 
 | Feature | Notes |
 |---------|-------|
@@ -1110,17 +1110,11 @@ def extract_pdf_text(path: Path) -> str:
 
 ---
 
-## Relationship to Existing Code
+## Design lineage
 
-| Reuse from | What |
-|------------|------|
-| `interview/document_parser.py` | PDF text + vision fallback, parser registry |
-| `interview/llm.py` | Vision message patterns (adapted for tools, not direct LLM calls) |
-| `pipeline/SPEC.md` | Spec format, success criteria style |
-| `pipeline/types.py` | Result type patterns (status, metadata) |
-| `pipeline/cost.py` | Token aggregation, USD estimates, `format_cost_line` |
+Structured Doc Agent is **schema-dynamic and agent-driven** — callers define fields per document type rather than shipping a fixed domain schema.
 
-**Key difference:** `interview` is domain-fixed (invoices); `pipeline` is domain-fixed (transport orders); **`extractor` is schema-dynamic and agent-driven.**
+Prior art in document parsing (text layer + vision fallback, cost aggregation patterns) informed the tool design; this codebase is self-contained.
 
 ---
 
@@ -1129,7 +1123,7 @@ def extract_pdf_text(path: Path) -> str:
 1. **UI framework:** Plain HTML/JS (fastest for demo) or React from the start?
 2. **Schema planner:** Still needed when user uses field spec, or only for NL prompt mode?
 3. **Provenance:** Show page numbers in activity feed in Phase 2, or defer?
-4. **Hosting:** Local-only demo, or deploy to Railway/Fly for remote interview?
+4. **Hosting:** Local development, Docker, or deploy to Render / Railway / Fly.
 5. **Fixtures:** Additional sample docs + expected JSON beyond `Bottles-CI.pdf`?
 6. **Budget cap:** Enable `max_budget_usd` by default, or only when caller opts in?
 7. **Preset templates:** Invoice only, or 2–3 (receipt, form) for demo variety?
@@ -1142,5 +1136,5 @@ def extract_pdf_text(path: Path) -> str:
 1. **Plan** — Phase 1 task breakdown (backend first, SSE-ready)
 2. **Tasks** — discrete units with acceptance criteria
 3. **Implement Phase 1** — `pyproject.toml` → field spec builder → tools → agent → API + SSE → CLI
-4. **Implement Phase 2** — demo UI wired to `/v1/extract/stream`
-5. **Rehearse demo** — 5-minute walkthrough script with `Bottles-CI.pdf`
+4. **Implement Phase 2** — web UI wired to `/v1/extract/stream`
+5. **Validate with fixtures** — golden JSON for `Bottles-CI-text.pdf` and additional sample docs.

@@ -2,7 +2,7 @@
 
 An agentic document extraction system: PDFs and images in, validated JSON out — with live progress, cost tracking, and production-minded design choices.
 
-This document stays **high-level**. It explains *what* was built and *why*, so you can walk an interviewer through the system without opening the codebase.
+This document stays **high-level**. It explains *what* the system does and *why*, without requiring a walkthrough of the codebase.
 
 ---
 
@@ -19,15 +19,15 @@ Hard parts:
 
 ---
 
-## What I built (elevator pitch)
+## System summary
 
-> *“I built an end-to-end extraction pipeline where a user uploads a document, defines fields in a UI, and an LLM agent **reads the file with tools** before filling a JSON schema. Progress streams live to the browser. I support two LLM backends, multiple models via OpenRouter, automatic vision fallback for scanned PDFs, and unified cost accounting — all behind one orchestrator used by the UI, REST API, and CLI.”*
+Structured Doc Agent is an end-to-end extraction pipeline: a user uploads a document, defines fields in a UI (or via API), and an LLM agent **reads the file with tools** before filling a JSON schema. Progress streams live to the browser. The system supports two LLM backends, multiple models via OpenRouter, automatic vision fallback for scanned PDFs, and unified cost accounting — all behind one orchestrator used by the UI, REST API, and CLI.
 
 ---
 
 ## High-level flow
 
-### 1. User journey (what the interviewer sees in the demo)
+### 1. User journey
 
 ```mermaid
 flowchart TB
@@ -38,7 +38,7 @@ flowchart TB
     D[Click Extract]
   end
 
-  subgraph System["Extractor pipeline"]
+  subgraph System["Extraction pipeline"]
     E[Validate & ingest file]
     F[Build JSON Schema]
     G[Pick model + vision fallback if needed]
@@ -62,11 +62,11 @@ flowchart TB
   I --> L
 ```
 
-**Typical demo path (5 minutes):**
+**Typical usage flow:**
 
 1. Load a **commercial invoice** (text PDF) — fast model, text-layer tools, fields populate in seconds.  
 2. Switch to a **scanned PDF** — same field spec; system detects vision need and switches model automatically; agent renders pages and reads visually.  
-3. Point at the **event feed** — “Here’s the model in use, here’s `analyze_document`, here’s `render_pdf_pages`, here’s the final cost.”
+3. Review the **event feed** — model in use, tool calls (`analyze_document`, `render_pdf_pages`), and final cost.
 
 ---
 
@@ -122,13 +122,13 @@ flowchart TD
 - Missing or unclear → `null` or `[]`, never invented  
 - Copy values **verbatim** from the source  
 
-This is what makes the system **trustworthy** for finance/ops use cases, not just a demo trick.
+This makes the system **trustworthy** for finance and operations use cases.
 
 ---
 
 ### 4. Dual LLM backend (same tools, two integration styles)
 
-I implemented **two backends** behind one switch — env var, UI toggle, or API option — to show I can work with both **agent frameworks** and **direct provider APIs**:
+Two backends sit behind one switch — env var, UI toggle, or API option:
 
 ```mermaid
 flowchart TB
@@ -145,12 +145,12 @@ flowchart TB
   APIPath --> OR2[OpenRouter]
 ```
 
-| Backend | What it demonstrates |
-|---------|----------------------|
+| Backend | Role |
+|---------|------|
 | **Agent SDK** | MCP tools, structured output, streaming agent events, provider routing via OpenRouter |
 | **OpenRouter API** | Hand-rolled tool loop, multimodal tool results (images as data URLs), JSON schema response format |
 
-Same business logic; different integration depth — useful when discussing **when to use an agent framework vs plain HTTP**.
+Same business logic; different integration depth — choose an agent framework or plain HTTP depending on deployment needs.
 
 ---
 
@@ -177,15 +177,13 @@ flowchart LR
 The **event feed** states the model actually in use, e.g.  
 *“Model: Kimi K2.6 · OpenRouter API (scanned document — switched from DeepSeek V3.2)”*
 
-This shows **sensible defaults + automatic recovery**, not “one model fits all.”
-
 ---
 
 ## Entry points
 
-| Entry | Audience | What it proves |
-|-------|----------|----------------|
-| **Demo UI** | Interview, product demo | Full UX: upload, field builder, live SSE feed, results, cost |
+| Entry | Audience | Purpose |
+|-------|----------|---------|
+| **Web UI** | Operators, integrators | Full UX: upload, field builder, live SSE feed, results, cost |
 | **HTTP API** | Integrations | Sync + streaming endpoints, job polling fallback |
 | **CLI** | Automation | Scriptable runs with progress on stderr |
 
@@ -195,7 +193,7 @@ This shows **sensible defaults + automatic recovery**, not “one model fits all
 
 | Mode | Input | When to use |
 |------|--------|-------------|
-| **Field spec** | UI-friendly field list (scalars + repeating lists) | Demo, business users, quick integrations |
+| **Field spec** | UI-friendly field list (scalars + repeating lists) | Web UI, business users, quick integrations |
 | **Natural language** | “Extract invoice number, date, line items…” | Exploratory / prompt-driven |
 | **JSON Schema** | Full schema document | Power users, strict contracts |
 
@@ -217,25 +215,23 @@ Field spec → schema conversion is **local and deterministic** (no LLM spend fo
 - USD estimated from a model registry (OpenRouter-accurate; SDK totals not blindly trusted)  
 - Displayed in UI footer and returned in API `usage`  
 
-This addresses the interview question: *“How would you operate this in production?”* — you need visibility before you need scale.
+Visibility into model, tools, and cost is required to operate extraction in production.
 
 ---
 
-## What this project demonstrates (talking points)
+## Capabilities
 
-Use these as **capability anchors** in conversation:
-
-| Area | What I did |
-|------|------------|
+| Area | Description |
+|------|-------------|
 | **Agentic design** | Tool-using LLM that inspects documents before extracting; strict anti-hallucination policy |
 | **Multimodal** | Text-layer PDFs + scanned/image PDFs via page rendering and vision models |
 | **System design** | Single orchestrator; thin API/UI/CLI; shared tools across backends |
 | **LLM integration** | Claude Agent SDK + direct OpenRouter chat completions; model registry; OpenRouter routing |
 | **Real-time UX** | SSE progress stream, event history, error banners, job poll fallback |
 | **Data modeling** | Field spec → JSON Schema; nested lists; structured LLM output validation |
-| **Pragmatic AI ops** | Vision fallback, cost aggregation, configurable models/backends via env |
+| **AI ops** | Vision fallback, cost aggregation, configurable models/backends via env |
 | **Quality** | Unit + integration tests; golden PDF fixtures; mocked and live LLM paths |
-| **Documentation** | Spec, architecture, runnable demo with sample documents |
+| **Documentation** | Spec, architecture, web UI with sample documents |
 
 ---
 
@@ -266,13 +262,12 @@ Use these as **capability anchors** in conversation:
 
 ---
 
-## Suggested interview walkthrough (≈5 min)
+## Example end-to-end flow
 
-1. **Problem** — “Teams need structured data from messy PDFs without hallucinations.”  
-2. **Architecture** — “One orchestrator, agent with tools, schema-constrained output.”  
-3. **Live demo** — text invoice → fast extraction; scanned doc → auto vision model; show event feed + cost.  
-4. **Depth hook** — “I also built a second backend on raw OpenRouter API to compare agent SDK vs direct tool loops.”  
-5. **Production angle** — “Streaming progress, cost per run, null-not-guess policy, tests on real PDFs.”
+1. **Upload** a text-layer invoice PDF and load the invoice field preset.  
+2. **Extract** with a fast text model — schema builds locally, agent calls `analyze_document` and `extract_pdf_text`.  
+3. **Review** results and the event feed (tools, model, cost).  
+4. **Repeat** with a scanned PDF — same field spec; vision fallback selects a vision-capable model automatically.
 
 ---
 
