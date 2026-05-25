@@ -4,6 +4,8 @@ Agentic PDF/image extraction using the Claude Agent SDK and OpenRouter. Upload a
 
 **Repo:** [github.com/krunalvaghani/structured-doc-agent](https://github.com/krunalvaghani/structured-doc-agent)
 
+**Live demo:** [structured-doc-agent.onrender.com/ui](https://structured-doc-agent.onrender.com/ui) · API root: [structured-doc-agent.onrender.com](https://structured-doc-agent.onrender.com)
+
 **Docs:** [ARCHITECTURE.md](ARCHITECTURE.md) (current design) · [SPEC.md](SPEC.md) (original spec)
 
 ## What this project covers
@@ -165,5 +167,7 @@ The app reads **`PORT`** from the environment (Render injects this automatically
 Rate limits are **off by default** locally (`EXTRACTOR_RATE_LIMIT_ENABLED=false`). On a public deploy, enable them to cap OpenRouter spend: **5 extractions per IP per hour** and **20 globally per UTC day**. Check remaining quota with `GET /v1/quota`; extraction returns **429** with a JSON body when exhausted (no client IP is exposed). GitHub Actions CI runs tests separately; no extra workflow is required for deploy.
 
 **Logs on Render:** open your service → **Logs**. Set `LOG_LEVEL=DEBUG` temporarily for verbose pipeline logs. Startup logs include `app_root`, `ui_mounted`, and config summary.
+
+**Free tier uptime:** Render spins down free web services after **15 minutes** with no inbound traffic; the URL stays deployed and wakes on the next visit (~1 minute cold start). Spun-down services do not use free instance hours. See [Render free tier docs](https://render.com/docs/free).
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for system design.
