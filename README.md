@@ -96,8 +96,34 @@ Golden fixture eval (no LLM): `tests/test_golden_eval.py` checks expected invoic
 
 CI runs unit tests on every push (see `.github/workflows/ci.yml`).
 
-### Live demo (remote interviews)
+### Deploy on Render
 
-This repo is designed to run locally or via Docker. For a hosted demo, deploy the Docker image to Railway, Fly.io, or Render and inject `OPENROUTER_API_KEY` as a secret. Contact the author for a live walkthrough link if needed.
+The app reads **`PORT`** from the environment (Render injects this automatically). Use the **OpenRouter API** backend on PaaS (`EXTRACTOR_BACKEND=api`).
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for system design and interview walkthrough.
+**Option A — Blueprint (fastest)**
+
+1. Push this repo to GitHub.
+2. In [Render](https://render.com): **New → Blueprint** → connect the repo.
+3. Render reads `render.yaml` and creates the web service.
+4. When prompted, set **`OPENROUTER_API_KEY`** (secret).
+5. After deploy, open `https://<your-service>.onrender.com/ui`.
+
+**Option B — Manual web service**
+
+1. **New → Web Service** → connect repo.
+2. **Runtime:** Docker (uses root `Dockerfile`).
+3. **Health check path:** `/health`
+4. **Plan:** Starter recommended (free tier sleeps when idle).
+5. **Environment variables:**
+
+   | Key | Value |
+   |-----|--------|
+   | `OPENROUTER_API_KEY` | your key (secret) |
+   | `ANTHROPIC_BASE_URL` | `https://openrouter.ai/api` |
+   | `ANTHROPIC_API_KEY` | *(empty)* |
+   | `EXTRACTOR_BACKEND` | `api` |
+   | `EXTRACTOR_HOST` | `0.0.0.0` |
+
+Render auto-deploys on push to your default branch. GitHub Actions CI runs tests separately; no extra workflow is required for deploy.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for system design.

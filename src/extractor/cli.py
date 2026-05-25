@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -19,6 +20,27 @@ from extractor.types import ExtractionOptions, ExtractionRequest
 
 load_dotenv()
 log = get_logger(__name__)
+
+DEFAULT_SERVE_HOST = "127.0.0.1"
+DEFAULT_SERVE_PORT = 8000
+
+
+def resolve_serve_bind(
+    *,
+    host: str | None = None,
+    port: int | None = None,
+) -> tuple[str, int]:
+    """Resolve bind host/port from CLI flags, then env (PORT for Render/PaaS)."""
+    if port is None:
+        port = int(os.environ.get("PORT") or os.environ.get("EXTRACTOR_PORT") or DEFAULT_SERVE_PORT)
+
+    if host is None:
+        host = os.environ.get("EXTRACTOR_HOST")
+        if not host and os.environ.get("PORT"):
+            host = "0.0.0.0"
+        host = host or DEFAULT_SERVE_HOST
+
+    return host, port
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -36,9 +58,19 @@ def _build_parser() -> argparse.ArgumentParser:
     run.add_argument("--verbose", action="store_true")
     run.add_argument("--backend", choices=["agent", "api"], help="Extraction backend override")
 
+    default_host, default_port = resolve_serve_bind()
     serve = sub.add_parser("serve", help="Start API server and demo UI")
-    serve.add_argument("--host", default="127.0.0.1", help="Bind host (default: 127.0.0.1)")
-    serve.add_argument("--port", type=int, default=8000, help="Bind port (default: 8000)")
+    serve.add_argument(
+        "--host",
+        default=default_host,
+        help="Bind host (default: EXTRACTOR_HOST, or 0.0.0.0 when PORT is set)",
+    )
+    serve.add_argument(
+        "--port",
+        type=int,
+        default=default_port,
+        help="Bind port (default: PORT env, EXTRACTOR_PORT, or 8000)",
+    )
     serve.add_argument("--reload", action="store_true", help="Auto-reload on code changes")
     return parser
 
@@ -46,15 +78,16 @@ def _build_parser() -> argparse.ArgumentParser:
 def _serve_cli(args: argparse.Namespace) -> int:
     import uvicorn
 
+    host, port = resolve_serve_bind(host=args.host, port=args.port)
     configure_logging(level="INFO")
-    log.info("starting server http://%s:%s/ui", args.host, args.port)
-    print(f"Extractor API: http://{args.host}:{args.port}", file=sys.stderr)
-    print(f"Demo UI:       http://{args.host}:{args.port}/ui", file=sys.stderr)
-    print(f"Health:        http://{args.host}:{args.port}/health", file=sys.stderr)
+    log.info("starting server http://%s:%s/ui", host, port)
+    print(f"Extractor API: http://{host}:{port}", file=sys.stderr)
+    print(f"Demo UI:       http://{host}:{port}/ui", file=sys.stderr)
+    print(f"Health:        http://{host}:{port}/health", file=sys.stderr)
     uvicorn.run(
         "extractor.api:app",
-        host=args.host,
-        port=args.port,
+        host=host,
+        port=port,
         reload=args.reload,
         log_level="info",
     )
