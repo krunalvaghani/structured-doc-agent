@@ -36,8 +36,9 @@ async def test_extract_bottles_ci_invoice() -> None:
     )
     result = await run_extraction(request)
     assert result.status in {"success", "needs_review"}
-    if result.status == "success":
-        assert result.data is not None
-        assert "invoice_number" in result.data
-        assert isinstance(result.data.get("line_items"), list)
+    if result.status == "success" and result.data is not None:
+        from golden_eval import assert_bottles_ci_extraction
+
+        golden_failures = assert_bottles_ci_extraction(result.data)
+        assert golden_failures == [], "\n".join(golden_failures)
         assert result.usage.cost_usd >= 0

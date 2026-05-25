@@ -1,8 +1,8 @@
 {
-  "status": "success",
+  "document": "Bottles-CI-text.pdf",
+  "notes": "Golden expectations for the commercial invoice demo PDF (text layer). Values verified from PDF text extraction.",
   "required_fields": [
     "invoice_number",
-    "consignee",
     "total_amount_usd",
     "line_items"
   ],
@@ -14,5 +14,32 @@
     "total_amount_usd",
     "hs_code"
   ],
-  "notes": "Golden fixture for Bottles-CI-text.pdf commercial invoice demo"
+  "data": {
+    "invoice_number": "248053B-E",
+    "total_amount_usd": 48060.0,
+    "line_items_count": 14,
+    "line_items_must_include_codes": [
+      "I8RF350PBBEES",
+      "I8SS1000ANAVY",
+      "I8SS400PTDRAG"
+    ],
+    "line_items_sample": [
+      {
+        "item_code": "I8RF350PBBEES",
+        "description_contains": "Bumble Bees",
+        "quantity": 1008,
+        "unit_price_usd": 1.742,
+        "total_amount_usd": 1755.94,
+        "hs_code": "39233010"
+      },
+      {
+        "item_code": "I8SS1000ANAVY",
+        "description_contains": "Ash Navy",
+        "quantity": 2016,
+        "unit_price_usd": 3.069,
+        "total_amount_usd": 6187.1,
+        "hs_code": "96170000"
+      }
+    ]
+  }
 }

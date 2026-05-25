@@ -1,0 +1,9 @@
+.git
+.github
+.pytest_cache
+.env
+.env.*
+storage/uploads/
+tests/
+*.md
+!README.md

@@ -1,6 +1,8 @@
 # Spec: Agentic Document Extraction Pipeline
 
-> **Status:** DRAFT — awaiting review before implementation.
+> **Status:** Implemented — this document is the **original design spec** (historical reference).
+>
+> The shipped system differs in several ways: **OpenRouter routing**, a **multi-model registry**, **dual LLM backends** (Agent SDK + OpenRouter API), and **vision auto-fallback**. For the current architecture and interview walkthrough, see **[ARCHITECTURE.md](ARCHITECTURE.md)**.
 
 ## Vision & Interview Showcase
 

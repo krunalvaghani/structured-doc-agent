@@ -52,3 +52,7 @@ secrets/
 # Ignore data or output folders (customize as needed)
 data/
 outputs/
+
+# Transient API uploads (demo PDFs live in storage/ root)
+storage/uploads/*
+!storage/uploads/.gitkeep

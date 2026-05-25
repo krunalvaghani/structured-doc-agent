@@ -1,16 +1,26 @@
 # Extractor
 
-Agentic PDF/image extraction using the Claude Agent SDK. Upload a document, define fields to extract, get validated JSON with live progress and cost tracking.
+Agentic PDF/image extraction using the Claude Agent SDK and OpenRouter. Upload a document, define fields to extract, get validated JSON with live progress and cost tracking.
+
+**Docs:** [ARCHITECTURE.md](ARCHITECTURE.md) (current design) · [SPEC.md](SPEC.md) (original spec)
 
 ## Quick start
 
 ```bash
-cd /home/krunal/python-workspace/voyfai/extractor
-conda run -n voyfai uv pip install -e ".[dev]"
+git clone <your-repo-url>
+cd extractor
+python -m venv .venv && source .venv/bin/activate   # or: conda activate voyfai
+pip install -e ".[dev]"
 
 # Copy env template and set your OpenRouter key
 cp .env.example .env
 # Edit .env — set OPENROUTER_API_KEY (see .env.example)
+```
+
+With the existing **conda** env `voyfai`:
+
+```bash
+conda run -n voyfai uv pip install -e ".[dev]"
 ```
 
 ### LLM provider
@@ -56,6 +66,15 @@ If port 8000 is already in use, pick another port:
 extractor serve --reload --port 8001
 ```
 
+### Docker
+
+```bash
+docker build -t extractor .
+docker run --rm -p 8000:8000 --env-file .env extractor
+```
+
+Open **http://127.0.0.1:8000/ui**. LLM calls require `OPENROUTER_API_KEY` or `ANTHROPIC_API_KEY` in `.env`.
+
 ### CLI extraction
 
 ```bash
@@ -70,7 +89,15 @@ extractor run \
 
 ```bash
 conda run -n voyfai pytest -q
-conda run -n voyfai pytest -q -m integration
+conda run -n voyfai pytest -q -m integration   # live LLM; requires API key
 ```
 
-See [SPEC.md](SPEC.md) for full design.
+Golden fixture eval (no LLM): `tests/test_golden_eval.py` checks expected invoice values against `tests/fixtures/bottles_ci_expected.json`.
+
+CI runs unit tests on every push (see `.github/workflows/ci.yml`).
+
+### Live demo (remote interviews)
+
+This repo is designed to run locally or via Docker. For a hosted demo, deploy the Docker image to Railway, Fly.io, or Render and inject `OPENROUTER_API_KEY` as a secret. Contact the author for a live walkthrough link if needed.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for system design and interview walkthrough.
