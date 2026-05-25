@@ -26,7 +26,7 @@ _JSON_TYPE_MAP = {
 _ALLOWED_SCALAR_TYPES = frozenset({"string", "number", "integer", "float", "boolean", "date"})
 
 _NULL_HINT = " Return null if not explicitly present in the document."
-_EMPTY_LIST_HINT = " Use an empty array if no rows exist. Do not invent rows."
+_EMPTY_LIST_HINT = " Use an empty array only if no records exist in the document. Do not invent items."
 
 
 def _scalar_schema(field_type: str, *, nullable: bool = True) -> dict[str, Any]:

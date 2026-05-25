@@ -21,6 +21,16 @@
       <div class="header-copy">
         <h1>Document Extractor</h1>
         <p>Upload a PDF, define fields, watch the agent work, get JSON.</p>
+        <details class="how-it-works">
+          <summary>How this works</summary>
+          <ul>
+            <li><strong>Pipeline</strong> — validate file → build JSON Schema → agent reads the document → structured JSON out.</li>
+            <li><strong>Tools first</strong> — the model analyzes the file, then reads selectable text <em>or</em> renders page images (scanned PDFs).</li>
+            <li><strong>Honest output</strong> — values come from the document only; missing fields are <code>null</code>, not guessed.</li>
+            <li><strong>Smart models</strong> — if a scanned doc needs vision and your model is text-only, a vision model is picked automatically (shown in the feed).</li>
+            <li><strong>Observable</strong> — event history, live status, and run summary show what happened behind the scenes.</li>
+          </ul>
+        </details>
       </div>
       <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Switch theme">Light mode</button>
     </div>
@@ -37,7 +47,10 @@
         <p>Drag & drop PDF or image, or click to browse</p>
         <input type="file" id="file-input" accept=".pdf,.png,.jpg,.jpeg,.webp" hidden />
       </div>
-      <p id="file-info" class="muted"></p>
+      <div class="file-actions">
+        <p id="file-info" class="muted"></p>
+        <button type="button" id="btn-view-doc" class="btn-view-doc" disabled title="Open document preview">View document</button>
+      </div>
 
       <h2>2. Fields to extract</h2>
       <details class="field-help">
@@ -73,11 +86,14 @@
 
     <section class="panel">
       <h2>Event history</h2>
+      <div id="run-status" class="run-status is-hidden" aria-live="polite" role="status"></div>
       <div class="activity-panel">
         <ul id="activity-feed" class="activity-feed">
           <li class="muted history-empty">No events yet</li>
         </ul>
       </div>
+
+      <div id="run-summary" class="run-summary is-hidden" aria-live="polite"></div>
 
       <h2>Results</h2>
       <div id="results"></div>
@@ -89,6 +105,22 @@
       <footer id="cost-footer" class="cost-footer">Cost: —</footer>
     </section>
   </main>
+
+  <div id="doc-viewer" class="doc-viewer is-hidden" aria-hidden="true">
+    <div class="doc-viewer-panel" role="dialog" aria-labelledby="doc-viewer-title">
+      <header class="doc-viewer-header">
+        <span id="doc-viewer-title" class="doc-viewer-title">Document</span>
+        <div class="doc-viewer-controls">
+          <button type="button" id="doc-viewer-expand" class="doc-viewer-expand" aria-label="Expand preview">Expand</button>
+          <button type="button" id="doc-viewer-close" class="doc-viewer-close" aria-label="Close preview">×</button>
+        </div>
+      </header>
+      <div class="doc-viewer-body">
+        <iframe id="doc-viewer-frame" class="doc-viewer-frame" title="Document preview"></iframe>
+        <img id="doc-viewer-image" class="doc-viewer-image is-hidden" alt="Document preview" />
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

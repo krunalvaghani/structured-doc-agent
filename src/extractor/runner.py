@@ -20,7 +20,9 @@ from extractor.parsing.pdf import get_page_count
 from extractor.parsing.registry import detect_kind, validate_file_size
 from extractor.models import pick_extraction_model
 from extractor.parsing.strategy import document_needs_vision
+from extractor.completeness import check_list_completeness
 from extractor.schema_builder import describe_field_spec, field_spec_to_json_schema
+from extractor.schema_validate import validation_errors
 from extractor.types import ExtractionRequest, ExtractionResult, FieldSpec, UsageSummary
 from extractor.verification import verify_extracted_data
 
@@ -204,15 +206,39 @@ async def run_extraction(
         status = agent_result.get("status", "failed")
         data = agent_result.get("data")
         error = agent_result.get("error")
-
         verify_meta: dict[str, Any] = {}
+        schema_validation_errors: list[str] = list(agent_result.get("validation_errors") or [])
+
+        if status == "success" and data is not None and not schema_validation_errors:
+            schema_validation_errors = validation_errors(data, schema)
+            if schema_validation_errors:
+                status = "needs_review"
+                error = error or "schema_validation_failed"
+
+        if schema_validation_errors:
+            warnings.extend(f"Schema: {msg}" for msg in schema_validation_errors)
+            verify_meta["validation_errors"] = schema_validation_errors
+
+        completeness_warnings: list[str] = []
+        if status in {"success", "needs_review"} and data is not None and isinstance(data, dict):
+            completeness_warnings = check_list_completeness(
+                data, schema, path, page_count=page_count
+            )
+            if completeness_warnings:
+                warnings.extend(completeness_warnings)
+                verify_meta["completeness_warnings"] = completeness_warnings
+                if status == "success":
+                    status = "needs_review"
+                    error = error or "empty_list_extraction"
+
         if (
             settings.verify_text_layer
             and status == "success"
             and data
             and isinstance(data, dict)
         ):
-            verify_warnings, verify_meta = verify_extracted_data(data, path, schema)
+            verify_warnings, verify_layer_meta = verify_extracted_data(data, path, schema)
+            verify_meta.update(verify_layer_meta)
             if verify_warnings:
                 warnings.extend(verify_warnings)
                 await emit(
@@ -223,7 +249,7 @@ async def run_extraction(
                         detail={"warnings": verify_warnings},
                     )
                 )
-        elif not settings.verify_text_layer:
+        elif not settings.verify_text_layer and not verify_meta:
             verify_meta = {"verification": "disabled"}
 
         result = ExtractionResult(

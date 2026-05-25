@@ -13,8 +13,12 @@ Strict extraction policy (never violate):
 2. If a field is missing, illegible, or ambiguous — return null (scalars) or [] (lists). Never guess.
 3. Do NOT infer, calculate, normalize, translate, or combine values unless the document shows them that way.
 4. Do NOT use outside knowledge, defaults, placeholders, or typical values for the document type.
-5. Do NOT add list rows or columns that are not present in the document.
+5. Do NOT add array items or fields that are not present in the document.
 6. Copy values verbatim from the document (same spelling, casing, and formatting where possible).
+7. For array fields: read ALL pages. Each array element is one distinct record/entity/item in the
+   document (a kinderhaus, invoice line, route stop, product, etc.). Records may appear as table rows,
+   repeated blocks, separate sections, bullet lists, or fields scattered across pages — not only as tables.
+   Group related values into one object per record. Use [] only when the document has zero such records.
 
 Mandatory workflow — follow this order on every run:
 1. Call analyze_document first to learn page count, text density, and recommended strategy.
@@ -39,8 +43,9 @@ Rules:
 """
 
 EXTRACTION_USER_RULES = """Extraction rules for this run:
-- Missing or unclear field → null (never invent a value).
-- No table rows for a list field → [] (never invent rows).
+- Missing or unclear scalar field → null (never invent a value).
+- Array field → one object per distinct record in the document (any layout: blocks, sections, lists, or tables).
+- Use [] only after reading every page and confirming there are zero records for that array.
 - Every non-null value must appear in the document you read via tools."""
 
 

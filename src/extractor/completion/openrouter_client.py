@@ -32,11 +32,14 @@ class OpenRouterClient:
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | dict[str, Any] | None = "auto",
         response_format: dict[str, Any] | None = None,
+        plugins: list[dict[str, Any]] | None = None,
+        reasoning: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "model": model,
             "messages": messages,
             "max_tokens": self.settings.max_output_tokens,
+            "stream": False,
         }
         if tools is not None:
             payload["tools"] = tools
@@ -44,6 +47,10 @@ class OpenRouterClient:
                 payload["tool_choice"] = tool_choice
         if response_format is not None:
             payload["response_format"] = response_format
+        if plugins is not None:
+            payload["plugins"] = plugins
+        if reasoning is not None:
+            payload["reasoning"] = reasoning
 
         async with httpx.AsyncClient(timeout=self.settings.request_timeout_s) as client:
             response = await client.post(

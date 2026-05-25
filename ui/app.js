@@ -24,6 +24,18 @@ const BACKEND_STORAGE_KEY = "extractor-backend";
 const DEFAULT_MODEL_ID = "deepseek-v3.2";
 const DEFAULT_BACKEND = "api";
 
+const TOOL_LABELS = {
+  analyze_document: "Analyze document",
+  extract_pdf_text: "Extract PDF text",
+  render_pdf_pages: "Render pages (vision)",
+  get_document_metadata: "Read metadata",
+};
+
+const BACKEND_LABELS = {
+  api: "OpenRouter API",
+  agent: "Agent SDK",
+};
+
 const state = {
   file: null,
   fields: [],
@@ -31,13 +43,24 @@ const state = {
   pollTimer: null,
   demos: [],
   activeDemoId: null,
+  runContext: null,
+  previewObjectUrl: null,
 };
 
 const dropZone = document.getElementById("drop-zone");
 const fileInput = document.getElementById("file-input");
 const fileInfo = document.getElementById("file-info");
+const btnViewDoc = document.getElementById("btn-view-doc");
+const docViewer = document.getElementById("doc-viewer");
+const docViewerTitle = document.getElementById("doc-viewer-title");
+const docViewerFrame = document.getElementById("doc-viewer-frame");
+const docViewerImage = document.getElementById("doc-viewer-image");
+const docViewerClose = document.getElementById("doc-viewer-close");
+const docViewerExpand = document.getElementById("doc-viewer-expand");
 const fieldBuilder = document.getElementById("field-builder");
 const activityFeed = document.getElementById("activity-feed");
+const runStatusEl = document.getElementById("run-status");
+const runSummaryEl = document.getElementById("run-summary");
 
 const ACTIVITY_SOURCES = ["pipeline", "agent", "tool"];
 
@@ -45,6 +68,164 @@ const activityState = {
   activeSource: null,
   streamBuffer: "",
 };
+
+function normalizeToolName(raw) {
+  if (!raw) return null;
+  const name = String(raw);
+  const prefix = "mcp__extractor__";
+  return name.startsWith(prefix) ? name.slice(prefix.length) : name;
+}
+
+function toolLabel(name) {
+  return TOOL_LABELS[name] || name;
+}
+
+function backendLabel(id) {
+  return BACKEND_LABELS[id] || id;
+}
+
+function formatModelLabel(id) {
+  if (!modelSelect || !id) return id || "—";
+  const opt = modelSelect.querySelector(`option[value="${id}"]`);
+  return opt ? opt.textContent : id;
+}
+
+function resetRunContext() {
+  state.runContext = {
+    tools: new Set(),
+    stageStarted: false,
+    fieldCount: state.fields.filter((f) => f.name?.trim()).length,
+    requestedModel: modelSelect?.value || DEFAULT_MODEL_ID,
+    requestedBackend: selectedBackend(),
+  };
+  hideRunSummary();
+  setRunStatus("Starting extraction…", { active: true });
+}
+
+function hideRunStatus() {
+  if (!runStatusEl) return;
+  runStatusEl.classList.add("is-hidden");
+  runStatusEl.innerHTML = "";
+}
+
+function setRunStatus(message, { active = true, badge = null } = {}) {
+  if (!runStatusEl) return;
+  runStatusEl.classList.remove("is-hidden");
+  runStatusEl.classList.toggle("run-status-active", active);
+  const badgeHtml = badge
+    ? `<span class="run-status-badge">${escapeHtml(badge)}</span>`
+    : "";
+  runStatusEl.innerHTML = `${badgeHtml}<span class="run-status-text">${escapeHtml(message)}</span>`;
+}
+
+function hideRunSummary() {
+  if (!runSummaryEl) return;
+  runSummaryEl.classList.add("is-hidden");
+  runSummaryEl.innerHTML = "";
+}
+
+function summaryRow(label, value) {
+  return `<div class="run-summary-row"><dt>${escapeHtml(label)}</dt><dd>${value}</dd></div>`;
+}
+
+function renderRunSummary(payload) {
+  if (!runSummaryEl || !payload) return;
+
+  const meta = payload.metadata || {};
+  const usage = payload.usage || {};
+  const models = meta.models_used || {};
+  const ctx = state.runContext || {};
+  const tools = ctx.tools ? [...ctx.tools].map((t) => toolLabel(t)) : [];
+
+  const kind = (meta.document_kind || "document").toUpperCase();
+  const pages = meta.page_count != null ? `${meta.page_count} page(s)` : "—";
+  const docPath = meta.document_needs_vision ? "vision (scanned/image)" : "text layer";
+  const backend = backendLabel(meta.extraction_backend || ctx.requestedBackend);
+  const extractionModel = formatModelLabel(models.extraction || meta.models_used?.extraction);
+  const requestedModel = formatModelLabel(models.extraction_requested || ctx.requestedModel);
+  const duration =
+    meta.duration_ms != null ? `${(meta.duration_ms / 1000).toFixed(1)}s` : "—";
+  const cost = usage.cost_usd != null ? `$${Number(usage.cost_usd).toFixed(4)}` : "—";
+  const tokens =
+    usage.input_tokens != null
+      ? `${Number(usage.input_tokens).toLocaleString()} in / ${Number(usage.output_tokens || 0).toLocaleString()} out`
+      : "—";
+
+  let modelLine = escapeHtml(extractionModel);
+  if (meta.vision_fallback && requestedModel !== extractionModel) {
+    modelLine += ` <span class="run-summary-note">(auto — switched from ${escapeHtml(requestedModel)})</span>`;
+  }
+
+  const statusClass =
+    payload.status === "success"
+      ? "run-summary-ok"
+      : payload.status === "needs_review"
+        ? "run-summary-review"
+        : "run-summary-failed";
+
+  runSummaryEl.className = `run-summary ${statusClass}`;
+  runSummaryEl.innerHTML = `
+    <h3 class="run-summary-title">What happened</h3>
+    <dl class="run-summary-grid">
+      ${summaryRow("Document", `${escapeHtml(pages)} · ${escapeHtml(kind)} · ${escapeHtml(docPath)}`)}
+      ${summaryRow("Schema", `${ctx.fieldCount || "—"} field(s) from your definition`)}
+      ${summaryRow("Backend", escapeHtml(backend))}
+      ${summaryRow("Model", modelLine)}
+      ${summaryRow("Tools", tools.length ? escapeHtml(tools.join(" · ")) : "—")}
+      ${summaryRow("Duration", escapeHtml(duration))}
+      ${summaryRow("Cost", `${escapeHtml(cost)} · ${escapeHtml(tokens)}`)}
+    </dl>
+  `;
+  runSummaryEl.classList.remove("is-hidden");
+
+  if (payload.status === "failed") {
+    setRunStatus(payload.error || "Extraction failed", { active: false, badge: "Failed" });
+  } else if (payload.status === "needs_review") {
+    setRunStatus(`Finished in ${duration} · ${cost} — needs review`, { active: false, badge: "Review" });
+  } else {
+    setRunStatus(`Finished in ${duration} · ${cost}`, { active: false, badge: "Done" });
+  }
+}
+
+function handleRunEvent(event) {
+  if (!state.runContext) return;
+
+  const type = event.type;
+  const detail = event.detail || {};
+
+  if (type === "run_started") {
+    setRunStatus("Validating document and building schema…", { active: true });
+    return;
+  }
+
+  if (type === "file_validated") {
+    setRunStatus(event.message || "File validated", { active: true });
+    return;
+  }
+
+  if (type === "schema_built") {
+    setRunStatus("Schema ready — starting extraction agent…", { active: true });
+    return;
+  }
+
+  if (type === "stage_started" && event.stage === "extraction") {
+    state.runContext.stageStarted = true;
+    const badge = detail.vision_fallback ? "Auto vision" : null;
+    setRunStatus(event.message || "Extracting…", { active: true, badge });
+    return;
+  }
+
+  if (type === "tool_started" || type === "agent_tool_called") {
+    const tool = normalizeToolName(detail.tool);
+    if (tool) state.runContext.tools.add(tool);
+    setRunStatus(`Reading document: ${toolLabel(tool || "tool")}…`, { active: true });
+    return;
+  }
+
+  if (type === "run_completed" || type === "run_failed") {
+    return;
+  }
+}
 
 function eventSource(event) {
   const s = event.source || "pipeline";
@@ -152,6 +333,22 @@ function createScalarTable() {
   return { wrap, tbody: wrap.querySelector("tbody") };
 }
 
+function bindLabelToKey(labelEl, nameEl, obj) {
+  labelEl.addEventListener("input", (e) => {
+    obj.label = e.target.value;
+    if (!obj.nameManual) {
+      obj.name = slugify(e.target.value);
+      nameEl.value = obj.name;
+    }
+    updateExtractButton();
+  });
+  nameEl.addEventListener("input", (e) => {
+    obj.name = e.target.value;
+    obj.nameManual = true;
+    updateExtractButton();
+  });
+}
+
 function renderScalarRow(field) {
   const tr = document.createElement("tr");
   tr.dataset.id = field.id;
@@ -164,19 +361,7 @@ function renderScalarRow(field) {
     <td class="col-action"><button type="button" class="btn-icon" data-action="remove" title="Remove">×</button></td>
   `;
 
-  tr.querySelector('[data-key="label"]').addEventListener("input", (e) => {
-    field.label = e.target.value;
-    if (!field.nameManual) {
-      field.name = slugify(e.target.value);
-      tr.querySelector('[data-key="name"]').value = field.name;
-    }
-    updateExtractButton();
-  });
-  tr.querySelector('[data-key="name"]').addEventListener("input", (e) => {
-    field.name = e.target.value;
-    field.nameManual = true;
-    updateExtractButton();
-  });
+  bindLabelToKey(tr.querySelector('[data-key="label"]'), tr.querySelector('[data-key="name"]'), field);
   tr.querySelector('[data-key="description"]').addEventListener("input", (e) => {
     field.description = e.target.value;
   });
@@ -204,19 +389,11 @@ function renderListColumnRow(field, item) {
     <td class="col-action"><button type="button" class="btn-icon" data-action="remove-item" title="Remove column">×</button></td>
   `;
 
-  tr.querySelector("[data-item-label]").addEventListener("input", (e) => {
-    item.label = e.target.value;
-    if (!item.nameManual) {
-      item.name = slugify(e.target.value);
-      tr.querySelector("[data-item-name]").value = item.name;
-    }
-    updateExtractButton();
-  });
-  tr.querySelector("[data-item-name]").addEventListener("input", (e) => {
-    item.name = e.target.value;
-    item.nameManual = true;
-    updateExtractButton();
-  });
+  bindLabelToKey(
+    tr.querySelector("[data-item-label]"),
+    tr.querySelector("[data-item-name]"),
+    item
+  );
   tr.querySelector("[data-item-description]").addEventListener("input", (e) => {
     item.description = e.target.value;
   });
@@ -263,15 +440,11 @@ function renderListBlock(field) {
     tbody.appendChild(renderListColumnRow(field, item));
   });
 
-  metaRow.querySelector('[data-key="label"]').addEventListener("input", (e) => {
-    field.label = e.target.value;
-    updateExtractButton();
-  });
-  metaRow.querySelector('[data-key="name"]').addEventListener("input", (e) => {
-    field.name = e.target.value;
-    field.nameManual = true;
-    updateExtractButton();
-  });
+  bindLabelToKey(
+    metaRow.querySelector('[data-key="label"]'),
+    metaRow.querySelector('[data-key="name"]'),
+    field
+  );
   metaRow.querySelector('[data-key="description"]').addEventListener("input", (e) => {
     field.description = e.target.value;
   });
@@ -314,7 +487,7 @@ function renderFields() {
   });
 
   if (state.fields.length === 0) {
-    fieldBuilder.innerHTML = `<p class="schema-empty muted">No fields yet — add a field or load the invoice preset.</p>`;
+    fieldBuilder.innerHTML = `<p class="schema-empty muted">No fields yet — add a field or list, or pick a demo document.</p>`;
   }
 
   updateExtractButton();
@@ -333,39 +506,15 @@ function addScalarField() {
 }
 
 function addListField() {
+  const label = "Line Items";
   state.fields.push({
     id: uid(),
-    name: "line_items",
-    label: "Line Items",
+    name: slugify(label),
+    label,
     description: "",
     type: "array",
-    nameManual: true,
-    item_fields: [
-      {
-        id: uid(),
-        name: "description",
-        label: "Description",
-        description: "",
-        type: "string",
-        nameManual: true,
-      },
-      {
-        id: uid(),
-        name: "quantity",
-        label: "Quantity",
-        description: "",
-        type: "integer",
-        nameManual: true,
-      },
-      {
-        id: uid(),
-        name: "total",
-        label: "Total",
-        description: "",
-        type: "float",
-        nameManual: true,
-      },
-    ],
+    nameManual: false,
+    item_fields: [],
   });
   renderFields();
 }
@@ -427,6 +576,8 @@ function addActivity(event) {
   li.dataset.source = source;
   if (event.type === "heartbeat") li.className = "heartbeat";
   if (event.type === "run_failed") li.className = "run-failed";
+  if (event.type === "stage_started" || event.type === "run_completed") li.className = "milestone";
+  if (event.detail?.vision_fallback) li.classList.add("vision-fallback");
   li.innerHTML = `
     <span class="trail-route">${formatTrailRoute(
       prevSource && prevSource !== source ? prevSource : null,
@@ -437,6 +588,7 @@ function addActivity(event) {
   `;
   activityFeed.appendChild(li);
   activityFeed.scrollTop = activityFeed.scrollHeight;
+  handleRunEvent(event);
 }
 
 function escapeHtml(s) {
@@ -452,7 +604,7 @@ function renderResults(payload) {
   const failed = payload.status === "failed";
   const errorText = payload.error?.trim();
 
-  if (failed || errorText) {
+  if (failed) {
     const banner = document.createElement("div");
     banner.className = "error-banner";
     banner.innerHTML = `
@@ -465,7 +617,15 @@ function renderResults(payload) {
   if (payload.status === "needs_review") {
     const banner = document.createElement("div");
     banner.className = "review-banner";
-    banner.textContent = "Agent flagged this result for review.";
+    const reviewMsg =
+      payload.error === "schema_validation_failed"
+        ? "Output did not match the extraction schema (see warnings below)."
+        : payload.error === "could_not_parse_result_json"
+          ? "Model returned a response that could not be parsed as JSON (see raw JSON below)."
+          : payload.error === "empty_list_extraction"
+            ? "An array field came back empty but the document may contain multiple records (see warnings)."
+            : "Agent flagged this result for review.";
+    banner.textContent = reviewMsg;
     resultsEl.appendChild(banner);
   }
   if (payload.warnings?.length) {
@@ -519,6 +679,9 @@ function renderResults(payload) {
   if (payload.usage) {
     const u = payload.usage;
     costFooter.textContent = `Cost: $${(u.cost_usd || 0).toFixed(4)} · tokens in=${u.input_tokens || 0} out=${u.output_tokens || 0}`;
+  }
+  if (state.runContext || payload.metadata?.page_count != null) {
+    renderRunSummary(payload);
   }
 }
 
@@ -643,9 +806,11 @@ async function initDemos() {
   if (!res.ok) throw new Error("Failed to load demo manifest");
   const manifest = await res.json();
   state.demos = manifest.demos || [];
-  demoSelect.innerHTML = state.demos
-    .map((d) => `<option value="${d.id}">${escapeHtml(d.label)}</option>`)
-    .join("");
+  demoSelect.innerHTML =
+    `<option value="">Custom upload</option>` +
+    state.demos
+      .map((d) => `<option value="${d.id}">${escapeHtml(d.label)}</option>`)
+      .join("");
   const defaultId = manifest.default || state.demos[0]?.id;
   if (defaultId) await loadDemo(defaultId);
 }
@@ -684,6 +849,8 @@ async function runExtraction() {
 
   activityFeed.innerHTML = `<li class="muted history-empty">No events yet</li>`;
   resetActivity();
+  resetRunContext();
+  if (state.file) openDocViewer();
   resultsEl.innerHTML = "";
   rawJson.textContent = "";
   costFooter.textContent = "Cost: running…";
@@ -733,16 +900,107 @@ async function runExtraction() {
 }
 
 async function runExtractionSync(form) {
+  if (!state.runContext) resetRunContext();
   const res = await fetch("/v1/extract", { method: "POST", body: form });
   const payload = await res.json();
   renderResults(payload);
   if (payload.job_id) startPoll(payload.job_id);
 }
 
-function setFile(file) {
+function clearFieldSpec() {
+  state.fields = [];
+  renderFields();
+}
+
+function setFile(file, { resetFields = false } = {}) {
   state.file = file;
   fileInfo.textContent = file ? `${file.name} (${(file.size / 1024).toFixed(1)} KB)` : "";
+  if (resetFields) {
+    state.activeDemoId = null;
+    if (demoSelect) demoSelect.value = "";
+    clearFieldSpec();
+  }
+  refreshDocumentPreview(file);
   updateExtractButton();
+}
+
+const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"]);
+
+function isImageFile(file) {
+  if (!file) return false;
+  if (file.type?.startsWith("image/")) return true;
+  const ext = file.name.includes(".") ? file.name.slice(file.name.lastIndexOf(".")).toLowerCase() : "";
+  return IMAGE_EXTENSIONS.has(ext);
+}
+
+function revokePreviewUrl() {
+  if (state.previewObjectUrl) {
+    URL.revokeObjectURL(state.previewObjectUrl);
+    state.previewObjectUrl = null;
+  }
+}
+
+function refreshDocumentPreview(file) {
+  revokePreviewUrl();
+  if (docViewerFrame) {
+    docViewerFrame.removeAttribute("src");
+    docViewerFrame.classList.add("is-hidden");
+  }
+  if (docViewerImage) {
+    docViewerImage.removeAttribute("src");
+    docViewerImage.classList.add("is-hidden");
+  }
+  if (!file) {
+    if (btnViewDoc) btnViewDoc.disabled = true;
+    if (docViewerTitle) docViewerTitle.textContent = "Document";
+    closeDocViewer();
+    return;
+  }
+  state.previewObjectUrl = URL.createObjectURL(file);
+  if (docViewerTitle) docViewerTitle.textContent = file.name;
+  if (btnViewDoc) btnViewDoc.disabled = false;
+  if (isImageFile(file)) {
+    if (docViewerImage) {
+      docViewerImage.src = state.previewObjectUrl;
+      docViewerImage.classList.remove("is-hidden");
+    }
+  } else if (docViewerFrame) {
+    docViewerFrame.src = state.previewObjectUrl;
+    docViewerFrame.classList.remove("is-hidden");
+  }
+}
+
+function openDocViewer() {
+  if (!state.file || !docViewer) return;
+  docViewer.classList.remove("is-hidden");
+  docViewer.setAttribute("aria-hidden", "false");
+}
+
+function closeDocViewer() {
+  if (!docViewer) return;
+  docViewer.classList.add("is-hidden");
+  docViewer.classList.remove("is-expanded");
+  docViewer.setAttribute("aria-hidden", "true");
+  if (docViewerExpand) {
+    docViewerExpand.textContent = "Expand";
+    docViewerExpand.setAttribute("aria-label", "Expand preview");
+  }
+}
+
+function toggleDocViewerExpanded() {
+  if (!docViewer) return;
+  docViewer.classList.toggle("is-expanded");
+  const expanded = docViewer.classList.contains("is-expanded");
+  if (docViewerExpand) {
+    docViewerExpand.textContent = expanded ? "Shrink" : "Expand";
+    docViewerExpand.setAttribute("aria-label", expanded ? "Shrink preview" : "Expand preview");
+  }
+}
+
+function toggleDocViewer() {
+  if (!docViewer) return;
+  if (docViewer.classList.contains("is-hidden")) openDocViewer();
+  else closeDocViewer();
 }
 
 dropZone.addEventListener("click", () => fileInput.click());
@@ -751,13 +1009,25 @@ dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover
 dropZone.addEventListener("drop", (e) => {
   e.preventDefault();
   dropZone.classList.remove("dragover");
-  if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+  if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0], { resetFields: true });
 });
-fileInput.addEventListener("change", () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
+fileInput.addEventListener("change", () => {
+  if (fileInput.files[0]) setFile(fileInput.files[0], { resetFields: true });
+});
+
+btnViewDoc?.addEventListener("click", toggleDocViewer);
+docViewerClose?.addEventListener("click", closeDocViewer);
+docViewerExpand?.addEventListener("click", toggleDocViewerExpanded);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && docViewer && !docViewer.classList.contains("is-hidden")) {
+    closeDocViewer();
+  }
+});
 
 document.getElementById("btn-add-field").addEventListener("click", addScalarField);
 document.getElementById("btn-add-list").addEventListener("click", addListField);
 demoSelect.addEventListener("change", () => {
+  if (!demoSelect.value) return;
   loadDemo(demoSelect.value).catch((err) => {
     addActivity({ source: "pipeline", message: `Demo load failed: ${err.message}`, type: "run_failed" });
   });

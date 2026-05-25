@@ -69,6 +69,10 @@ async def test_extract_with_completion_tool_loop_and_json(tmp_path: Path) -> Non
         ],
         "usage": {"prompt_tokens": 100, "completion_tokens": 20},
     }
+    no_tools_turn = {
+        "choices": [{"message": {"role": "assistant", "content": "Document read complete."}}],
+        "usage": {"prompt_tokens": 50, "completion_tokens": 10},
+    }
     final_turn = {
         "choices": [
             {
@@ -82,7 +86,7 @@ async def test_extract_with_completion_tool_loop_and_json(tmp_path: Path) -> Non
     }
 
     mock_client = AsyncMock()
-    mock_client.chat = AsyncMock(side_effect=[tool_turn, final_turn])
+    mock_client.chat = AsyncMock(side_effect=[tool_turn, no_tools_turn, final_turn])
 
     with patch("extractor.completion.extraction.OpenRouterClient", return_value=mock_client):
         with patch(
@@ -99,9 +103,9 @@ async def test_extract_with_completion_tool_loop_and_json(tmp_path: Path) -> Non
 
     assert result["status"] == "success"
     assert result["data"] == {"invoice_number": "ABC-123"}
-    assert usage.input_tokens == 300
-    assert usage.output_tokens == 50
-    assert mock_client.chat.await_count == 2
+    assert usage.input_tokens == 350
+    assert usage.output_tokens == 60
+    assert mock_client.chat.await_count == 3
 
 
 @pytest.mark.asyncio
