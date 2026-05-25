@@ -112,7 +112,7 @@ flowchart TD
   JSON["Structured JSON output<br/>matches schema"]
   Start --> Analyze --> Text
   Text -->|text_layer| ExtractText --> Read
-  Text -->|vision / scanned| Render --> Read
+  Text -->|vision or scanned| Render --> Read
   Read --> JSON
 ```
 

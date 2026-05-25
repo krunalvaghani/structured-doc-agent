@@ -25,8 +25,8 @@ flowchart LR
     U4[Results + cost]
   end
   subgraph API["FastAPI + SSE"]
-    A1[/v1/extract]
-    A2[/v1/extract/stream]
+    A1["POST /v1/extract"]
+    A2["POST /v1/extract/stream"]
   end
   subgraph Agent["Claude Agent SDK"]
     G1[Schema from field spec]
@@ -465,7 +465,7 @@ flowchart TD
   subgraph Pipeline["Our implementation (always on)"]
     P1[upload_received]
     P2[schema_built]
-    P3[stage_started / stage_completed]
+    P3["stage_started / stage_completed"]
     P4[tool_wrapper before/after]
     P5[heartbeat during long waits]
   end
@@ -475,7 +475,7 @@ flowchart TD
     A3[ResultMessage usage]
   end
   subgraph Out["ProgressEmitter"]
-    E[SSE /v1/extract/stream]
+    E["SSE /v1/extract/stream"]
   end
   Pipeline --> Out
   Agent --> Out
