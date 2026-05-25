@@ -8,7 +8,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -16,6 +16,7 @@ from extractor.config import PACKAGE_ROOT, STORAGE_ROOT, get_settings, parse_ext
 from extractor.events import ProgressEmitter
 from extractor.models import models_for_provider
 from extractor.runner import new_job_id, parse_field_spec_json, run_extraction
+from extractor.rate_limit import RateLimitExceeded, client_ip, get_rate_limiter
 from extractor.types import ExtractionOptions, ExtractionRequest
 
 app = FastAPI(title="Structured Doc Agent", version="0.1.0")
@@ -53,6 +54,7 @@ async def health() -> dict[str, Any]:
         "anthropic_api_key_configured": bool(settings.anthropic_api_key),
         "default_extraction_backend": settings.extraction_backend,
         "api_backend_available": settings.api_backend_available,
+        "rate_limit_enabled": settings.rate_limit_enabled,
     }
 
 
@@ -66,6 +68,22 @@ async def list_models() -> dict[str, Any]:
         "provider": provider,
         "models": [m.to_dict(use_openrouter=use_openrouter) for m in models],
     }
+
+
+@app.get("/v1/quota")
+async def get_quota(request: Request) -> dict[str, Any]:
+    settings = get_settings()
+    limiter = get_rate_limiter(settings)
+    return limiter.snapshot(client_ip(request))
+
+
+def _enforce_rate_limit(request: Request) -> None:
+    settings = get_settings()
+    limiter = get_rate_limiter(settings)
+    try:
+        limiter.check_and_consume(client_ip(request))
+    except RateLimitExceeded as exc:
+        raise HTTPException(status_code=429, detail=exc.to_dict()) from exc
 
 
 @app.get("/v1/jobs/{job_id}")
@@ -126,12 +144,14 @@ def _build_request(
 
 @app.post("/v1/extract")
 async def extract_sync(
+    request: Request,
     file: UploadFile = File(...),
     field_spec: str | None = Form(None),
     prompt: str | None = Form(None),
     output_schema: str | None = Form(None, alias="schema"),
     options: str | None = Form(None),
 ) -> JSONResponse:
+    _enforce_rate_limit(request)
     job_id = new_job_id()
     path = await _save_upload(job_id, file)
     request = _build_request(
@@ -148,12 +168,14 @@ async def extract_sync(
 
 @app.post("/v1/extract/stream")
 async def extract_stream(
+    request: Request,
     file: UploadFile = File(...),
     field_spec: str | None = Form(None),
     prompt: str | None = Form(None),
     output_schema: str | None = Form(None, alias="schema"),
     options: str | None = Form(None),
 ) -> StreamingResponse:
+    _enforce_rate_limit(request)
     job_id = new_job_id()
     path = await _save_upload(job_id, file)
     request = _build_request(

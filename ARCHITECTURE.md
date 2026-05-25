@@ -219,6 +219,23 @@ Visibility into model, tools, and cost is required to operate extraction in prod
 
 ---
 
+## Rate limiting (public deploy)
+
+For public instances (e.g. Render), optional **env-gated quotas** protect OpenRouter spend without adding auth:
+
+| Limit | Default when enabled |
+|-------|----------------------|
+| Per client IP | 5 extractions / rolling hour |
+| Global | 20 extractions / UTC day |
+
+- Master switch: `EXTRACTOR_RATE_LIMIT_ENABLED` (`false` locally, `true` in `render.yaml`).
+- In-memory counters (single-instance v1); Redis would be needed for multi-instance sharing.
+- Client IP from `X-Forwarded-For` (Render); **never shown in the UI**.
+- `GET /v1/quota` returns remaining counts; `POST /v1/extract` and `/v1/extract/stream` return **429** before file upload or LLM when exhausted.
+- Web UI shows a quota chip and disables Extract when quota is zero.
+
+---
+
 ## Capabilities
 
 | Area | Description |
@@ -241,7 +258,7 @@ Visibility into model, tools, and cost is required to operate extraction in prod
 2. **One pipeline** — UI, API, and CLI never diverge.  
 3. **Observable runs** — model, backend, and tools are visible in the event feed.  
 4. **Right model for the job** — cheap text default; vision when the file requires it.  
-5. **Honest failures** — clear errors in UI and API when keys, backends, or parsing fail.
+5. **Honest failures** — clear errors in UI and API when keys, backends, parsing, or quota limits fail.
 
 ---
 

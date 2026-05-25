@@ -36,6 +36,10 @@ const BACKEND_LABELS = {
   agent: "Agent SDK",
 };
 
+const costFooter = document.getElementById("cost-footer");
+const btnExtract = document.getElementById("btn-extract");
+const quotaChip = document.getElementById("quota-chip");
+
 const state = {
   file: null,
   fields: [],
@@ -45,6 +49,8 @@ const state = {
   activeDemoId: null,
   runContext: null,
   previewObjectUrl: null,
+  quota: null,
+  quotaBlocked: false,
 };
 
 const dropZone = document.getElementById("drop-zone");
@@ -259,8 +265,6 @@ function resetActivity() {
 }
 const resultsEl = document.getElementById("results");
 const rawJson = document.getElementById("raw-json");
-const costFooter = document.getElementById("cost-footer");
-const btnExtract = document.getElementById("btn-extract");
 
 function uid() {
   return Math.random().toString(36).slice(2, 9);
@@ -548,8 +552,82 @@ function updateExtractButton() {
   const hasFile = Boolean(state.file);
   const hasFields = state.fields.some((f) => f.name?.trim());
   const errors = collectValidationErrors();
-  btnExtract.disabled = !(hasFile && hasFields && errors.length === 0);
-  btnExtract.title = errors.length ? errors.join("\n") : "";
+  const quotaOk = !state.quotaBlocked;
+  btnExtract.disabled = !(hasFile && hasFields && errors.length === 0 && quotaOk);
+  if (state.quotaBlocked && state.quota?.enabled) {
+    btnExtract.title = "Extraction quota exhausted — see message above";
+  } else {
+    btnExtract.title = errors.length ? errors.join("\n") : "";
+  }
+}
+
+function renderQuotaChip(quota) {
+  if (!quotaChip) return;
+  if (!quota?.enabled) {
+    quotaChip.classList.add("is-hidden");
+    quotaChip.textContent = "";
+    return;
+  }
+  const usedIp = quota.limit_ip - quota.remaining_ip;
+  const usedGlobal = quota.limit_global_daily - quota.remaining_global;
+  quotaChip.classList.remove("is-hidden");
+  quotaChip.classList.toggle("quota-low", quota.remaining_ip <= 1 || quota.remaining_global <= 3);
+  quotaChip.classList.toggle("quota-exhausted", quota.remaining_ip === 0 || quota.remaining_global === 0);
+  quotaChip.textContent =
+    `Demo quota: ${usedIp}/${quota.limit_ip} this hour · ${usedGlobal}/${quota.limit_global_daily} today`;
+}
+
+async function refreshQuota() {
+  try {
+    const res = await fetch("/v1/quota");
+    if (!res.ok) return;
+    const quota = await res.json();
+    state.quota = quota;
+    state.quotaBlocked = Boolean(
+      quota.enabled && (quota.remaining_ip === 0 || quota.remaining_global === 0)
+    );
+    renderQuotaChip(quota);
+    updateExtractButton();
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+function showQuotaBanner(message) {
+  resultsEl.innerHTML = "";
+  const banner = document.createElement("div");
+  banner.className = "quota-banner";
+  banner.innerHTML = `
+    <strong>Quota limit reached</strong>
+    <p>${escapeHtml(message || "Try again later.")}</p>
+  `;
+  resultsEl.appendChild(banner);
+  setRunStatus(message || "Quota limit reached", { active: false, badge: "Quota" });
+  costFooter.textContent = "Cost: —";
+}
+
+async function parseErrorResponse(res) {
+  const text = await res.text();
+  try {
+    const body = JSON.parse(text);
+    if (body.detail && typeof body.detail === "object") return body.detail;
+    return body;
+  } catch (_) {
+    return { message: text || res.statusText };
+  }
+}
+
+function handleRateLimitResponse(detail) {
+  state.quota = detail.quota || state.quota;
+  state.quotaBlocked = true;
+  renderQuotaChip(state.quota);
+  updateExtractButton();
+  showQuotaBanner(detail.message);
+  addActivity({
+    source: "pipeline",
+    message: detail.message || "Rate limit exceeded",
+    type: "run_failed",
+  });
 }
 
 function addActivity(event) {
@@ -682,6 +760,9 @@ function renderResults(payload) {
   }
   if (state.runContext || payload.metadata?.page_count != null) {
     renderRunSummary(payload);
+  }
+  if (payload.status === "success" || payload.status === "needs_review") {
+    refreshQuota();
   }
 }
 
@@ -865,6 +946,10 @@ async function runExtraction() {
 
   try {
     const res = await fetch("/v1/extract/stream", { method: "POST", body: form });
+    if (res.status === 429) {
+      handleRateLimitResponse(await parseErrorResponse(res));
+      return;
+    }
     if (!res.ok) throw new Error(await res.text());
 
     const reader = res.body.getReader();
@@ -902,6 +987,10 @@ async function runExtraction() {
 async function runExtractionSync(form) {
   if (!state.runContext) resetRunContext();
   const res = await fetch("/v1/extract", { method: "POST", body: form });
+  if (res.status === 429) {
+    handleRateLimitResponse(await parseErrorResponse(res));
+    return;
+  }
   const payload = await res.json();
   renderResults(payload);
   if (payload.job_id) startPoll(payload.job_id);
@@ -1066,6 +1155,7 @@ initTheme();
 initModels()
   .then(() => initDemos())
   .then(() => applyDefaultModel())
+  .then(() => refreshQuota())
   .catch((err) => {
     fileInfo.textContent = `Demo load failed: ${err.message}`;
   });

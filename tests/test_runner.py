@@ -65,6 +65,10 @@ async def test_run_extraction_skips_verification_when_disabled() -> None:
         uploads_root=base.uploads_root,
         extraction_backend="agent",
         vision_model="kimi-k2.6",
+        rate_limit_enabled=base.rate_limit_enabled,
+        rate_limit_per_ip=base.rate_limit_per_ip,
+        rate_limit_per_ip_window_seconds=base.rate_limit_per_ip_window_seconds,
+        rate_limit_global_daily=base.rate_limit_global_daily,
     )
     spec = FieldSpec(
         fields=[FieldDefinition(name="invoice_number", label="Invoice Number", type="string")]
@@ -112,6 +116,10 @@ async def test_run_extraction_openrouter_api_key() -> None:
         uploads_root=base.uploads_root,
         extraction_backend="agent",
         vision_model="kimi-k2.6",
+        rate_limit_enabled=base.rate_limit_enabled,
+        rate_limit_per_ip=base.rate_limit_per_ip,
+        rate_limit_per_ip_window_seconds=base.rate_limit_per_ip_window_seconds,
+        rate_limit_global_daily=base.rate_limit_global_daily,
     )
     mock_agent = AsyncMock(
         return_value=({"status": "success", "data": {"x": "1"}}, UsageSummary.empty())
@@ -154,6 +162,10 @@ async def test_run_extraction_api_backend() -> None:
         uploads_root=base.uploads_root,
         extraction_backend="agent",
         vision_model="kimi-k2.6",
+        rate_limit_enabled=base.rate_limit_enabled,
+        rate_limit_per_ip=base.rate_limit_per_ip,
+        rate_limit_per_ip_window_seconds=base.rate_limit_per_ip_window_seconds,
+        rate_limit_global_daily=base.rate_limit_global_daily,
     )
     mock_api = AsyncMock(
         return_value=({"status": "success", "data": {"x": "1"}}, UsageSummary.empty())
@@ -194,6 +206,10 @@ async def test_run_extraction_missing_api_key(tmp_path: Path) -> None:
             uploads_root=settings.uploads_root,
             extraction_backend="agent",
             vision_model="kimi-k2.6",
+            rate_limit_enabled=settings.rate_limit_enabled,
+            rate_limit_per_ip=settings.rate_limit_per_ip,
+            rate_limit_per_ip_window_seconds=settings.rate_limit_per_ip_window_seconds,
+            rate_limit_global_daily=settings.rate_limit_global_daily,
         )
         result = await run_extraction(request, settings=settings)
 

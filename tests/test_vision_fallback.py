@@ -98,6 +98,10 @@ async def test_run_extraction_vision_fallback_for_scanned_pdf() -> None:
         uploads_root=base.uploads_root,
         extraction_backend="api",
         vision_model="kimi-k2.6",
+        rate_limit_enabled=base.rate_limit_enabled,
+        rate_limit_per_ip=base.rate_limit_per_ip,
+        rate_limit_per_ip_window_seconds=base.rate_limit_per_ip_window_seconds,
+        rate_limit_global_daily=base.rate_limit_global_daily,
     )
 
     mock_api = AsyncMock(

@@ -6,6 +6,45 @@ Agentic PDF/image extraction using the Claude Agent SDK and OpenRouter. Upload a
 
 **Docs:** [ARCHITECTURE.md](ARCHITECTURE.md) (current design) · [SPEC.md](SPEC.md) (original spec)
 
+## What this project covers
+
+End-to-end **document AI** sample: agentic extraction from PDFs/images to validated JSON, with a demo UI, API, and CLI.
+
+### AI & LLM systems
+
+| Area | What you get | Where |
+|------|----------------|-------|
+| **Agentic extraction** | Tool-first workflow (analyze → read text or render pages → structured JSON) | `runner.py`, `agent/`, `tools/` |
+| **Structured output** | Field spec → JSON Schema; schema-constrained LLM responses; post-validation | `schema_builder.py`, `schema_validate.py` |
+| **Trust & quality** | Anti-hallucination prompts; optional text-layer verification; golden fixture eval | `agent/prompts.py`, `verification.py`, `tests/golden_eval.py` |
+| **Dual LLM backends** | Claude Agent SDK (MCP) **or** OpenRouter chat + tool loop — same pipeline | `agent/extraction.py`, `completion/extraction.py` |
+| **Multimodal routing** | Text PDF vs scanned/image; automatic vision model fallback | `parsing/strategy.py`, `models.py` |
+| **LLM observability** | Unified progress events (pipeline + agent + tools); SSE streaming | `events.py`, `api.py` |
+| **Cost tracking** | Tokens and USD by stage/model; model registry with pricing | `cost.py`, `models.py` |
+| **Provider flexibility** | OpenRouter or direct Anthropic; env-driven model selection | `config.py`, `models.py` |
+
+### Product & engineering
+
+| Area | What you get | Where |
+|------|----------------|-------|
+| **API surface** | Sync extract, SSE stream, job poll, models list, quota | `api.py` |
+| **Web UI** | Upload, field builder, live activity feed, results, cost footer, quota UX | `ui/` |
+| **CLI** | Scriptable extraction for automation | `cli.py` |
+| **Document parsing** | PDF text layer, page rendering, image ingest (no LLM) | `parsing/` |
+| **Public deploy** | Docker, Render blueprint, health checks, env-gated rate limits | `Dockerfile`, `render.yaml`, `rate_limit.py` |
+| **Testing & CI** | Unit tests (mocked LLM), integration tests, GitHub Actions | `tests/`, `.github/workflows/ci.yml` |
+
+### Typical use cases
+
+| Use case | Supported |
+|----------|-----------|
+| Invoice / form field extraction | Yes |
+| Scanned PDFs (vision) | Yes |
+| Integrations via REST API | Yes |
+| Live demo with cost visibility | Yes |
+| RAG / embeddings / fine-tuning | Not in scope |
+| Multi-user auth | Not in scope (v1) |
+
 ## Quick start
 
 ```bash
@@ -119,7 +158,10 @@ The app reads **`PORT`** from the environment (Render injects this automatically
    | `ANTHROPIC_API_KEY` | *(empty)* |
    | `EXTRACTOR_BACKEND` | `api` |
    | `EXTRACTOR_HOST` | `0.0.0.0` |
+   | `EXTRACTOR_RATE_LIMIT_ENABLED` | `true` (recommended on public deploy) |
+   | `EXTRACTOR_RATE_LIMIT_PER_IP` | `5` (optional) |
+   | `EXTRACTOR_RATE_LIMIT_GLOBAL_DAILY` | `20` (optional) |
 
-Render auto-deploys on push to your default branch. GitHub Actions CI runs tests separately; no extra workflow is required for deploy.
+Rate limits are **off by default** locally (`EXTRACTOR_RATE_LIMIT_ENABLED=false`). On a public deploy, enable them to cap OpenRouter spend: **5 extractions per IP per hour** and **20 globally per UTC day**. Check remaining quota with `GET /v1/quota`; extraction returns **429** with a JSON body when exhausted (no client IP is exposed). GitHub Actions CI runs tests separately; no extra workflow is required for deploy.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for system design.

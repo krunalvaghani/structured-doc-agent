@@ -29,6 +29,7 @@ src/extractor/           # Python package (import name: extractor)
   api.py                 # FastAPI routes + SSE
   cli.py                 # extractor serve | extractor run
   config.py              # Settings from env
+  rate_limit.py          # Per-IP + global daily extraction quotas (env-gated)
   models.py              # Model registry (IDs, slugs, pricing, vision fallback)
   types.py               # ExtractionRequest, ExtractionResult, FieldSpec, …
   events.py              # ProgressEmitter, SSE events
@@ -81,6 +82,10 @@ Copy `.env.example` → `.env`. Never commit secrets.
 | `EXTRACTOR_SCHEMA_MODEL` | Schema planner model (NL prompt mode) |
 | `EXTRACTOR_VISION_MODEL` | Override vision fallback |
 | `PORT` | Bind port for PaaS (read by `cli.py`; default 8000) |
+| `EXTRACTOR_RATE_LIMIT_ENABLED` | `false` locally; set `true` on public deploy |
+| `EXTRACTOR_RATE_LIMIT_PER_IP` | Per-IP extractions per window (default `5`) |
+| `EXTRACTOR_RATE_LIMIT_PER_IP_WINDOW_SECONDS` | Rolling window in seconds (default `3600`) |
+| `EXTRACTOR_RATE_LIMIT_GLOBAL_DAILY` | Global extractions per UTC day (default `20`) |
 
 Models and pricing: **`src/extractor/models.py`** only.
 
@@ -160,6 +165,7 @@ If `extractor serve` appears to hang with no logs, run uvicorn directly or ensur
 | Web UI | `ui/app.js`, `ui/index.html`, `ui/styles.css` |
 | Golden expected values | `tests/fixtures/bottles_ci_expected.json`, `tests/golden_eval.py` |
 | Deploy / PORT | `Dockerfile`, `render.yaml`, `cli.resolve_serve_bind()` |
+| Rate limits / quota API | `src/extractor/rate_limit.py`, `src/extractor/api.py` (`GET /v1/quota`) |
 
 ---
 
@@ -183,6 +189,7 @@ Demo fixtures: `storage/Bottles-CI-text.pdf`, `storage/Test-1-image.pdf`.
 - Add unrestricted SDK tools (`Bash`, `Read`, etc.) without explicit approval
 - Duplicate pipeline logic in API, CLI, or UI
 - Use relative imports inside `src/extractor/`
+- Bypass rate limits in tests without patching `EXTRACTOR_RATE_LIMIT_*` or `reset_rate_limiter_for_tests()`
 
 **Ask before:**
 
@@ -197,6 +204,7 @@ Demo fixtures: `storage/Bottles-CI-text.pdf`, `storage/Test-1-image.pdf`.
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET | `/health` | Liveness + LLM config status |
+| GET | `/v1/quota` | Remaining demo quota (when rate limits enabled) |
 | GET | `/v1/models` | Model registry for UI |
 | POST | `/v1/extract` | Sync extraction |
 | POST | `/v1/extract/stream` | SSE progress + result |

@@ -137,6 +137,12 @@ ANTHROPIC_PRICING_JSON='{"claude-haiku-4-5":{"0":1.0,"1":5.0},"claude-sonnet-4-6
 
 EXTRACTOR_MAX_PAGES=50
 EXTRACTOR_MAX_FILE_MB=25
+
+# Rate limits (off by default — enable on public deploy)
+# EXTRACTOR_RATE_LIMIT_ENABLED=false
+# EXTRACTOR_RATE_LIMIT_PER_IP=5
+# EXTRACTOR_RATE_LIMIT_PER_IP_WINDOW_SECONDS=3600
+# EXTRACTOR_RATE_LIMIT_GLOBAL_DAILY=20
 ```
 
 Model IDs are placeholders — set to current Anthropic IDs at implementation time.
@@ -744,6 +750,7 @@ Simple, polished single-page app — no auth, no accounts. Optimized for **quick
 5. **Activity feed** — live progress panel (left or sidebar).
 6. **Results panel** — scalar fields as key-value; lists as table; raw JSON toggle.
 7. **Cost footer** — total tokens + USD, by stage/model.
+8. **Quota chip** — when rate limits are enabled, shows hourly/daily demo quota from `GET /v1/quota`; warning banner and disabled Extract on **429**.
 
 ### Field builder UX
 
@@ -941,9 +948,37 @@ Use `--quiet` to suppress the cost line; `--verbose` to include cache token brea
 
 The `usage` block is **always present** regardless of `status`.
 
+When rate limits are enabled (`EXTRACTOR_RATE_LIMIT_ENABLED=true`), requests over quota return **429** before upload or LLM:
+
+```json
+{
+  "detail": {
+    "error": "rate_limit_exceeded",
+    "scope": "ip",
+    "message": "Hourly limit reached (5 extractions per hour). Try again in about 42 minute(s).",
+    "retry_after_seconds": 2520,
+    "quota": {
+      "enabled": true,
+      "remaining_ip": 0,
+      "limit_ip": 5,
+      "window_seconds": 3600,
+      "remaining_global": 12,
+      "limit_global_daily": 20,
+      "resets_global_at": "2026-05-26T00:00:00Z"
+    }
+  }
+}
+```
+
+`scope` is `"ip"` or `"global"`.
+
+### `GET /v1/quota`
+
+Read-only quota snapshot for the caller's IP (IP never returned). When limits disabled: `{ "enabled": false }`. When enabled, same numeric fields as in the 429 `quota` object above.
+
 ### `POST /v1/extract/stream`
 
-Same request as `/v1/extract`. Response is `text/event-stream` with unified `ProgressEvent` objects from **pipeline**, **agent**, and **tool** sources (see Live Progress section). Final event is always `run_completed` or `run_failed` with full result + usage. UI may fall back to `GET /v1/jobs/{job_id}` if SSE disconnects.
+Same request as `/v1/extract`. Response is `text/event-stream` with unified `ProgressEvent` objects from **pipeline**, **agent**, and **tool** sources (see Live Progress section). Final event is always `run_completed` or `run_failed` with full result + usage. UI may fall back to `GET /v1/jobs/{job_id}` if SSE disconnects — **not** on HTTP 429 (quota exhausted).
 
 ### Status values
 
@@ -985,6 +1020,7 @@ ClaudeAgentOptions(
 - Sanitize/delete uploaded files after TTL (24h)
 - Enforce max file size and page count before agent run
 - Return structured errors to API clients; never raw stack traces
+- **Rate limiting (v1):** optional per-IP and global daily extraction quotas via env — cost protection for public demos, not authentication. Enable with `EXTRACTOR_RATE_LIMIT_ENABLED=true` on Render; off by default locally.
 
 ---
 
@@ -1075,6 +1111,7 @@ def extract_pdf_text(path: Path) -> str:
 | **Progress fallback** | UI never blank — L3 pipeline-only + heartbeat works without agent stream |
 | **Poll fallback (L4)** | `GET /v1/jobs/{job_id}` returns stage/message if SSE drops |
 | **Web UI (Phase 2)** | Upload → define fields → live feed → results + cost in a typical session |
+| **Public deploy quotas** | Env-gated rate limits cap extractions without code changes |
 
 ---
 

@@ -30,6 +30,10 @@ DEFAULT_REQUEST_TIMEOUT_S = 300
 DEFAULT_UPLOAD_TTL_HOURS = 24
 DEFAULT_VERIFY_TEXT_LAYER = False
 DEFAULT_MAX_OUTPUT_TOKENS = 8000
+DEFAULT_RATE_LIMIT_ENABLED = False
+DEFAULT_RATE_LIMIT_PER_IP = 5
+DEFAULT_RATE_LIMIT_PER_IP_WINDOW_SECONDS = 3600
+DEFAULT_RATE_LIMIT_GLOBAL_DAILY = 20
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 STORAGE_ROOT = PACKAGE_ROOT / "storage"
@@ -72,6 +76,10 @@ class Settings:
     uploads_root: Path
     extraction_backend: ExtractionBackend
     vision_model: str
+    rate_limit_enabled: bool
+    rate_limit_per_ip: int
+    rate_limit_per_ip_window_seconds: int
+    rate_limit_global_daily: int
 
     @property
     def api_backend_available(self) -> bool:
@@ -155,6 +163,23 @@ class Settings:
             uploads_root=UPLOADS_ROOT,
             extraction_backend=parse_extraction_backend(_env_str("EXTRACTOR_BACKEND") or "api"),
             vision_model=os.environ.get("EXTRACTOR_VISION_MODEL", VISION_FALLBACK_MODEL_ID),
+            rate_limit_enabled=env_bool(
+                "EXTRACTOR_RATE_LIMIT_ENABLED", DEFAULT_RATE_LIMIT_ENABLED
+            ),
+            rate_limit_per_ip=int(
+                os.environ.get("EXTRACTOR_RATE_LIMIT_PER_IP", DEFAULT_RATE_LIMIT_PER_IP)
+            ),
+            rate_limit_per_ip_window_seconds=int(
+                os.environ.get(
+                    "EXTRACTOR_RATE_LIMIT_PER_IP_WINDOW_SECONDS",
+                    DEFAULT_RATE_LIMIT_PER_IP_WINDOW_SECONDS,
+                )
+            ),
+            rate_limit_global_daily=int(
+                os.environ.get(
+                    "EXTRACTOR_RATE_LIMIT_GLOBAL_DAILY", DEFAULT_RATE_LIMIT_GLOBAL_DAILY
+                )
+            ),
         )
 
     def ensure_dirs(self) -> None:

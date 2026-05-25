@@ -17,3 +17,9 @@ services:
         value: api
       - key: EXTRACTOR_HOST
         value: 0.0.0.0
+      - key: EXTRACTOR_RATE_LIMIT_ENABLED
+        value: "true"
+      - key: EXTRACTOR_RATE_LIMIT_PER_IP
+        value: "5"
+      - key: EXTRACTOR_RATE_LIMIT_GLOBAL_DAILY
+        value: "20"

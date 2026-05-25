@@ -554,6 +554,41 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .badge.agent { background: var(--badge-agent-bg); color: var(--agent); }
 .badge.tool { background: var(--badge-tool-bg); color: var(--tool); }
 
+.quota-chip {
+  margin-top: 0.65rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.quota-chip.quota-low {
+  color: var(--warning);
+}
+
+.quota-chip.quota-exhausted {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.quota-banner {
+  background: var(--warning-subtle);
+  border: 1px solid var(--warning-border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.quota-banner strong {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--warning);
+}
+
+.quota-banner p {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.875rem;
+}
+
 #results table {
   width: 100%;
   border-collapse: collapse;

@@ -49,6 +49,10 @@ def test_openrouter_routes_non_anthropic_model_env() -> None:
         uploads_root=Settings.from_env().uploads_root,
         extraction_backend="agent",
         vision_model="kimi-k2.6",
+        rate_limit_enabled=False,
+        rate_limit_per_ip=5,
+        rate_limit_per_ip_window_seconds=3600,
+        rate_limit_global_daily=20,
     )
     env = settings.agent_sdk_env(model_slug="deepseek/deepseek-v4-pro")
     assert env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] == "8000"
@@ -72,6 +76,10 @@ def test_resolve_model_for_openrouter() -> None:
         uploads_root=Settings.from_env().uploads_root,
         extraction_backend="agent",
         vision_model="kimi-k2.6",
+        rate_limit_enabled=False,
+        rate_limit_per_ip=5,
+        rate_limit_per_ip_window_seconds=3600,
+        rate_limit_global_daily=20,
     )
     assert settings.resolve_model("claude-sonnet-4-6", default=settings.extractor_model) == (
         "anthropic/claude-sonnet-4.6"
