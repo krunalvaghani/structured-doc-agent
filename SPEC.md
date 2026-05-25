@@ -156,7 +156,7 @@ Callers override defaults per request via CLI flags or API `options.model` / `op
 
 ## ASSUMPTIONS
 
-1. **Runtime:** Python 3.11+, conda env `voyfai` (or any Python 3.11+ venv).
+1. **Runtime:** Python 3.11+ (venv, conda, or uv).
 2. **Purpose:** Production-minded document extraction — reliability, observability, and schema flexibility matter.
 3. **Input (Phase 1):** Local file upload — PDF and common images (PNG, JPG, JPEG, WEBP, TIFF).
 4. **Field definition:** UI field spec (scalar + repeating lists) is the primary path; NL prompt is secondary.
@@ -226,31 +226,32 @@ Both stages accept any supported Anthropic model ID, but v1 is optimized and tes
 
 ## Commands
 
-Use the **conda env `voyfai`**.
+Requires Python 3.11+ with dependencies installed (`pip install -e ".[dev]"`).
 
 ```bash
 # One-time setup
 cd structured-doc-agent
-conda run -n voyfai uv pip install -e ".[dev]"
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
 
 # Run API server
-conda run -n voyfai uvicorn extractor.api:app --reload --port 8000
+uvicorn extractor.api:app --reload --port 8000
 
 # CLI extraction (NL prompt) — defaults: Haiku planner, Sonnet extractor
-conda run -n voyfai extractor run \
+extractor run \
   --file ./storage/Bottles-CI.pdf \
   --prompt "Extract invoice number, date, vendor name, and all line items with description, quantity, and total" \
   --output result.json
 
 # CLI with explicit schema and model overrides (Haiku for both = cheapest)
-conda run -n voyfai extractor run \
+extractor run \
   --file ./samples/receipt.png \
   --schema ./schemas/receipt.json \
   --model claude-haiku-4-5 \
   --output result.json
 
 # CLI — Sonnet for both stages (highest accuracy)
-conda run -n voyfai extractor run \
+extractor run \
   --file ./storage/Bottles-CI.pdf \
   --prompt "Extract all fields from this commercial invoice" \
   --model claude-sonnet-4-6 \
@@ -258,8 +259,8 @@ conda run -n voyfai extractor run \
   --output result.json
 
 # Tests
-conda run -n voyfai pytest -q
-conda run -n voyfai pytest -q -m integration   # requires ANTHROPIC_API_KEY
+pytest -q
+pytest -q -m integration   # requires ANTHROPIC_API_KEY
 ```
 
 ---
@@ -772,7 +773,7 @@ Simple, polished single-page app — no auth, no accounts. Optimized for **quick
 Serve from FastAPI (`StaticFiles` on `/ui`) so one command runs everything:
 
 ```bash
-conda run -n voyfai uvicorn extractor.api:app --reload --port 8000
+extractor serve --reload --port 8000
 # Open http://localhost:8000/ui
 ```
 

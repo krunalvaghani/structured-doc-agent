@@ -11,7 +11,7 @@ Agentic PDF/image extraction using the Claude Agent SDK and OpenRouter. Upload a
 ```bash
 git clone git@github.com:krunalvaghani/structured-doc-agent.git
 cd structured-doc-agent
-python -m venv .venv && source .venv/bin/activate   # or: conda activate voyfai
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 
 # Copy env template and set your OpenRouter key
@@ -19,11 +19,7 @@ cp .env.example .env
 # Edit .env — set OPENROUTER_API_KEY (see .env.example)
 ```
 
-With the existing **conda** env `voyfai`:
-
-```bash
-conda run -n voyfai uv pip install -e ".[dev]"
-```
+Optional: use **conda** or **uv** on Python 3.11+ — `pip install -e ".[dev]"` (or `uv pip install -e ".[dev]"`) after activating your environment.
 
 ### LLM provider
 
@@ -41,19 +37,18 @@ For direct Anthropic instead, set `ANTHROPIC_API_KEY` and remove/unset the OpenR
 
 Models are defined in `src/extractor/models.py` (IDs, OpenRouter slugs, pricing). The UI loads the list from `GET /v1/models`. Override defaults with `EXTRACTOR_MODEL` / `EXTRACTOR_SCHEMA_MODEL` (registry id or full slug). Override pricing with `OPENROUTER_PRICING_JSON`.
 
-### Run API + demo UI (recommended)
+### Run API + web UI (recommended)
 
-`conda run` hides uvicorn logs and can look "stuck" with no output. Use one of these instead:
+With your virtual environment activated:
 
-**Option A — activate env first (best):**
 ```bash
-conda activate voyfai
 extractor serve --reload --port 8000
 ```
 
-**Option B — conda run with visible output:**
+Or run uvicorn directly:
+
 ```bash
-conda run -n voyfai --no-capture-output extractor serve --reload --port 8000
+uvicorn extractor.api:app --reload --port 8000
 ```
 
 Then open **http://127.0.0.1:8000/ui**
@@ -80,7 +75,6 @@ Open **http://127.0.0.1:8000/ui**. LLM calls require `OPENROUTER_API_KEY` or `AN
 ### CLI extraction
 
 ```bash
-conda activate voyfai
 extractor run \
   --file storage/Bottles-CI-text.pdf \
   --field-spec ui/presets/invoice.json \
@@ -90,8 +84,8 @@ extractor run \
 ### Tests
 
 ```bash
-conda run -n voyfai pytest -q
-conda run -n voyfai pytest -q -m integration   # live LLM; requires API key
+pytest -q
+pytest -q -m integration   # live LLM; requires API key
 ```
 
 Golden fixture eval (no LLM): `tests/test_golden_eval.py` checks expected invoice values against `tests/fixtures/bottles_ci_expected.json`.

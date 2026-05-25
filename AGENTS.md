@@ -88,14 +88,20 @@ Models and pricing: **`src/extractor/models.py`** only.
 
 ## Python environment
 
-Prefer conda env **`voyfai`** when available:
+Requires **Python ≥ 3.11**. Use a virtual environment (recommended):
 
 ```bash
-conda activate voyfai
-conda run -n voyfai uv pip install -e ".[dev]"
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
 ```
 
-Otherwise: `pip install -e ".[dev]"` in Python ≥ 3.11.
+With **conda**, create or activate any env on Python 3.11+, then:
+
+```bash
+pip install -e ".[dev]"
+# or: uv pip install -e ".[dev]"
+```
 
 Declare new dependencies in **`pyproject.toml`**, then reinstall editable.
 
@@ -123,7 +129,7 @@ docker build -t structured-doc-agent .
 docker run --rm -p 8000:8000 --env-file .env structured-doc-agent
 ```
 
-Use `conda run -n voyfai --no-capture-output` if you need visible uvicorn logs without activating the env.
+If `extractor serve` appears to hang with no logs, run uvicorn directly or ensure your process manager is not swallowing stdout.
 
 ---
 
@@ -206,3 +212,4 @@ Request: multipart `file` + exactly one of `field_spec` | `prompt` | `schema`, o
 - Default branch: **`main`**
 - Only commit when the user asks
 - Follow existing commit message style (concise, why-focused)
+- Do not reference private or machine-specific environment names in docs or commit messages
