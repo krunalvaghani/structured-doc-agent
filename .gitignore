@@ -24,7 +24,6 @@ pip-delete-this-directory.txt
 
 # Environmental variable files
 .env
-.env.*
 *.env
 
 # VSCode settings
