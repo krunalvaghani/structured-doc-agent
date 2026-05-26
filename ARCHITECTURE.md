@@ -148,7 +148,7 @@ flowchart TB
 | Backend | Role |
 |---------|------|
 | **Agent SDK** | MCP tools, structured output, streaming agent events, provider routing via OpenRouter |
-| **OpenRouter API** | Hand-rolled tool loop, multimodal tool results (images as data URLs), JSON schema response format |
+| **OpenRouter API** | Hand-rolled tool loop, multimodal tool results (images as data URLs), JSON schema response format; structured-output and model fallback (see §6) |
 
 Same business logic; different integration depth — choose an agent framework or plain HTTP depending on deployment needs.
 
@@ -176,6 +176,46 @@ flowchart LR
 
 The **event feed** states the model actually in use, e.g.  
 *“Model: Kimi K2.6 · OpenRouter API (scanned document — switched from DeepSeek V3.2)”*
+
+---
+
+### 6. Completion model & structured-output fallback (OpenRouter API)
+
+Some OpenRouter models accept tool calls but **cannot** serve the final `json_schema` response (strict schema + `response-healing` often returns **404 / no endpoints**). The API backend (`completion/extraction.py`) keeps trying until a usable result or the chain is exhausted:
+
+```mermaid
+flowchart TD
+  Start[Tool loop on model N]
+  ToolsOK{Tools succeeded?}
+  Struct[Structured JSON phase]
+  RetrySame[Same model: strict → relaxed → plain JSON]
+  NextModel[Next model in fallback chain]
+  Done[Return success or needs_review]
+  Fail[Return failed]
+
+  Start --> ToolsOK
+  ToolsOK -->|Retriable error| NextModel
+  ToolsOK -->|Fatal error| Fail
+  ToolsOK -->|Yes| Struct
+  Struct --> RetrySame
+  RetrySame -->|Usable JSON| Done
+  RetrySame -->|Retriable error| NextModel
+  NextModel -->|More models| Struct
+  NextModel -->|Chain exhausted| Fail
+```
+
+**Fallback order** (`completion_model_fallback_chain` in `models.py`):
+
+1. Requested / primary model  
+2. `EXTRACTOR_MODEL` default  
+3. `EXTRACTOR_VISION_MODEL` (if set)  
+4. `COMPLETION_FALLBACK_MODEL_IDS` — Kimi K2.6, Gemini 2.5 Flash, Claude Haiku  
+
+When the tool loop already succeeded, later models **reuse the same messages** (no duplicate tool spend). SSE emits *“Retrying extraction with fallback model…”* / *“Retrying JSON extraction with …”*. API results may include `"model_fallback": true`.
+
+**Retriable signals:** HTTP 400/404/408/429/5xx, timeouts, and message substrings such as `no endpoints`, `rate limit`.
+
+**Tests:** `tests/test_completion.py` (strict 404 retry, cross-model fallback).
 
 ---
 
@@ -246,7 +286,7 @@ For public instances (e.g. Render), optional **env-gated quotas** protect OpenRo
 | **LLM integration** | Claude Agent SDK + direct OpenRouter chat completions; model registry; OpenRouter routing |
 | **Real-time UX** | SSE progress stream, event history, error banners, job poll fallback |
 | **Data modeling** | Field spec → JSON Schema; nested lists; structured LLM output validation |
-| **AI ops** | Vision fallback, cost aggregation, configurable models/backends via env |
+| **AI ops** | Vision fallback, completion model fallback, cost aggregation, configurable models/backends via env |
 | **Quality** | Unit + integration tests; golden PDF fixtures; mocked and live LLM paths |
 | **Documentation** | Spec, architecture, web UI with sample documents |
 
@@ -274,6 +314,7 @@ For public instances (e.g. Render), optional **env-gated quotas** protect OpenRo
 | `data` | Extracted JSON |
 | `schema_used` | Schema applied to this run |
 | `metadata` | Pages, duration, backend, model requested vs used, vision fallback |
+| `model_fallback` | `true` when OpenRouter API succeeded after a fallback model (optional, on result payload) |
 | `usage` | Tokens and estimated USD by stage/model |
 | `warnings` | e.g. verification notes |
 

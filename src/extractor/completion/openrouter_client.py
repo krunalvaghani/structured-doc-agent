@@ -7,13 +7,28 @@ from typing import Any
 import httpx
 
 from extractor.config import OPENROUTER_BASE_URL, Settings
+from extractor.logger import get_logger
+
+log = get_logger(__name__)
+
+
+def normalize_openrouter_base_url(base: str) -> str:
+    """Return base URL for appending ``/v1/chat/completions`` (avoid double ``/v1``)."""
+    cleaned = base.rstrip("/")
+    if cleaned.endswith("/v1"):
+        return cleaned[: -len("/v1")]
+    return cleaned
+
+
+def chat_completions_url(base: str) -> str:
+    return f"{normalize_openrouter_base_url(base)}/v1/chat/completions"
 
 
 class OpenRouterClient:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         base = settings.anthropic_base_url or OPENROUTER_BASE_URL
-        self.base_url = base.rstrip("/")
+        self.base_url = normalize_openrouter_base_url(base)
         self.api_key = settings.openrouter_api_key or ""
 
     def _headers(self) -> dict[str, str]:
@@ -52,11 +67,38 @@ class OpenRouterClient:
         if reasoning is not None:
             payload["reasoning"] = reasoning
 
+        url = chat_completions_url(self.base_url)
         async with httpx.AsyncClient(timeout=self.settings.request_timeout_s) as client:
             response = await client.post(
-                f"{self.base_url}/v1/chat/completions",
+                url,
                 headers=self._headers(),
                 json=payload,
             )
-            response.raise_for_status()
+            try:
+                response.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                detail = _format_http_error(exc, model=model, url=url)
+                raise httpx.HTTPStatusError(
+                    detail,
+                    request=exc.request,
+                    response=exc.response,
+                ) from exc
             return response.json()
+
+
+def _format_http_error(exc: httpx.HTTPStatusError, *, model: str, url: str) -> str:
+    body = exc.response.text.strip()
+    message = body
+    try:
+        data = exc.response.json()
+        err = data.get("error")
+        if isinstance(err, dict) and err.get("message"):
+            message = str(err["message"])
+        elif isinstance(err, str):
+            message = err
+    except Exception:
+        pass
+    return (
+        f"OpenRouter HTTP {exc.response.status_code} for model {model!r}: {message} "
+        f"(url={url})"
+    )

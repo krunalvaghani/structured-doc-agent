@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from extractor.models import (
+    completion_model_fallback_chain,
     get_model,
     models_for_provider,
     pricing_for_model,
@@ -50,3 +51,15 @@ def test_pricing_for_new_models() -> None:
 def test_get_model_by_slug() -> None:
     assert get_model("anthropic/claude-haiku-4.5") is not None
     assert get_model("moonshotai/kimi-k2.6") is not None
+
+
+def test_completion_model_fallback_chain_deduplicates() -> None:
+    chain = completion_model_fallback_chain(
+        "deepseek/deepseek-v3.2",
+        use_openrouter=True,
+        default_model="kimi-k2.6",
+        vision_model="kimi-k2.6",
+    )
+    assert chain[0] == "deepseek/deepseek-v3.2"
+    assert "moonshotai/kimi-k2.6" in chain
+    assert len(chain) == len(set(chain))

@@ -17,7 +17,8 @@ Guidance for AI coding agents working in this repository.
 3. **Tool-first extraction** — The model must call document tools (`analyze_document`, `extract_pdf_text`, `render_pdf_pages`) before extracting. Prompts live in `src/extractor/agent/prompts.py`.
 4. **Ground truth only** — Missing fields → `null` / `[]`; never invent values. Do not weaken this policy in prompts or post-processing.
 5. **Progress is mandatory** — Pipeline and tool wrappers emit events via `ProgressEmitter` (`src/extractor/events.py`). Never gate basic stage visibility on the LLM stream.
-6. **Default backend on PaaS** — Use `EXTRACTOR_BACKEND=api` for Render/Docker (see `render.yaml`).
+6. **Completion resilience (API backend)** — On retriable OpenRouter errors (404, 429, 5xx, timeouts), `completion/extraction.py` retries structured output (strict JSON schema → relaxed → plain chat), then walks `completion_model_fallback_chain()` in `models.py` so callers still get a result when possible. Reuses tool-loop messages when only the JSON step failed. Sets `model_fallback: true` on success after fallback. Fallback model list: `COMPLETION_FALLBACK_MODEL_IDS`.
+7. **Default backend on PaaS** — Use `EXTRACTOR_BACKEND=api` for Render/Docker (see `render.yaml`).
 
 ---
 
@@ -30,7 +31,7 @@ src/extractor/           # Python package (import name: extractor)
   cli.py                 # extractor serve | extractor run
   config.py              # Settings from env
   rate_limit.py          # Per-IP + global daily extraction quotas (env-gated)
-  models.py              # Model registry (IDs, slugs, pricing, vision fallback)
+  models.py              # Model registry; vision fallback; COMPLETION_FALLBACK_MODEL_IDS
   types.py               # ExtractionRequest, ExtractionResult, FieldSpec, …
   events.py              # ProgressEmitter, SSE events
   jobs.py                # In-memory job store (poll fallback)
@@ -45,7 +46,7 @@ src/extractor/           # Python package (import name: extractor)
     prompts.py
     stream_adapter.py
   completion/            # OpenRouter API path
-    extraction.py
+    extraction.py        # Tool loop + structured JSON + model fallback chain
     openrouter_client.py
     tool_runner.py
     tool_schemas.py
@@ -160,6 +161,7 @@ If `extractor serve` appears to hang with no logs, run uvicorn directly or ensur
 | Extraction prompts | `src/extractor/agent/prompts.py` |
 | Agent SDK extraction | `src/extractor/agent/extraction.py` |
 | OpenRouter tool loop | `src/extractor/completion/extraction.py` |
+| Structured-output / model fallback chain | `src/extractor/completion/extraction.py`, `COMPLETION_FALLBACK_MODEL_IDS` in `models.py` |
 | Field spec → schema | `src/extractor/schema_builder.py` |
 | Model list / pricing | `src/extractor/models.py` |
 | SSE / progress events | `src/extractor/events.py` |

@@ -21,6 +21,7 @@ End-to-end **document AI** sample: agentic extraction from PDFs/images to valida
 | **Trust & quality** | Anti-hallucination prompts; optional text-layer verification; golden fixture eval | `agent/prompts.py`, `verification.py`, `tests/golden_eval.py` |
 | **Dual LLM backends** | Claude Agent SDK (MCP) **or** OpenRouter chat + tool loop — same pipeline | `agent/extraction.py`, `completion/extraction.py` |
 | **Multimodal routing** | Text PDF vs scanned/image; automatic vision model fallback | `parsing/strategy.py`, `models.py` |
+| **Model & output resilience** | OpenRouter API: structured-output retries (strict → relaxed → plain JSON), then fallback models on 404/429 and similar errors | `completion/extraction.py`, `models.py` |
 | **LLM observability** | Unified progress events (pipeline + agent + tools); SSE streaming | `events.py`, `api.py` |
 | **Cost tracking** | Tokens and USD by stage/model; model registry with pricing | `cost.py`, `models.py` |
 | **Provider flexibility** | OpenRouter or direct Anthropic; env-driven model selection | `config.py`, `models.py` |
@@ -77,6 +78,13 @@ ANTHROPIC_API_KEY=
 For direct Anthropic instead, set `ANTHROPIC_API_KEY` and remove/unset the OpenRouter variables.
 
 Models are defined in `src/extractor/models.py` (IDs, OpenRouter slugs, pricing). The UI loads the list from `GET /v1/models`. Override defaults with `EXTRACTOR_MODEL` / `EXTRACTOR_SCHEMA_MODEL` (registry id or full slug). Override pricing with `OPENROUTER_PRICING_JSON`.
+
+**OpenRouter API backend (`EXTRACTOR_BACKEND=api`):** if the selected model cannot finish structured JSON (common symptom: OpenRouter **404 / no endpoints** on strict `json_schema`), the pipeline automatically:
+
+1. Retries the same model with relaxed settings (non-strict schema, then plain chat JSON).
+2. Falls back to the next model in `completion_model_fallback_chain()` — primary → default → vision → Kimi K2.6 → Gemini 2.5 Flash → Claude Haiku — without re-running the tool loop when tools already succeeded.
+
+Progress events show fallback attempts; successful results may include `"model_fallback": true`. Edit the fallback list in `COMPLETION_FALLBACK_MODEL_IDS` (`models.py`). Unit tests: `tests/test_completion.py`.
 
 ### Run API + web UI (recommended)
 

@@ -105,6 +105,14 @@ DEFAULT_OPENROUTER_MODEL_ID = "kimi-k2.6"
 VISION_FALLBACK_MODEL_ID = "kimi-k2.6"
 ANTHROPIC_VISION_FALLBACK_MODEL_ID = "claude-sonnet-4-6"
 
+# Reliable OpenRouter fallbacks when the selected model cannot complete structured output.
+# Used by completion_model_fallback_chain() — see ARCHITECTURE.md §6 and README.md.
+COMPLETION_FALLBACK_MODEL_IDS: tuple[str, ...] = (
+    DEFAULT_OPENROUTER_MODEL_ID,
+    "gemini-2.5-flash",
+    "claude-haiku-4-5-20251001",
+)
+
 
 def models_for_provider(provider: str | None) -> list[ModelSpec]:
     if provider == "anthropic":
@@ -231,3 +239,36 @@ def pick_extraction_model(
         vision_fallback=vision_fallback,
         needs_vision=needs_vision,
     )
+
+
+def completion_model_fallback_chain(
+    primary_model: str,
+    *,
+    use_openrouter: bool,
+    default_model: str,
+    vision_model: str | None = None,
+) -> list[str]:
+    """Ordered OpenRouter/API model slugs to try when extraction fails retriably.
+
+    Chain: primary → default_model → vision_model → COMPLETION_FALLBACK_MODEL_IDS
+    (deduplicated). Consumed by ``completion/extraction.py`` for tool-loop restarts
+    and structured-output retries without re-running tools when possible.
+    """
+    seen: set[str] = set()
+    chain: list[str] = []
+
+    def add(raw: str | None) -> None:
+        if not raw:
+            return
+        slug = resolve_model_id(raw, use_openrouter=use_openrouter, default=default_model)
+        if slug in seen:
+            return
+        seen.add(slug)
+        chain.append(slug)
+
+    add(primary_model)
+    add(default_model)
+    add(vision_model)
+    for model_id in COMPLETION_FALLBACK_MODEL_IDS:
+        add(model_id)
+    return chain
