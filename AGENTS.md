@@ -224,3 +224,28 @@ Request: multipart `file` + exactly one of `field_spec` | `prompt` | `schema`, o
 - Only commit when the user asks
 - Follow existing commit message style (concise, why-focused)
 - Do not reference private or machine-specific environment names in docs or commit messages
+
+---
+
+## Cursor Cloud specific instructions
+
+### Dev server startup
+
+Use `uvicorn extractor.api:app --reload --port 8000` (not `extractor serve --reload`). The CLI's `--reload` flag has a pickling issue with `TextIOWrapper` in Python 3.12 due to uvicorn's multiprocessing reloader; running uvicorn directly avoids this.
+
+### Quick reference
+
+| Action | Command |
+|--------|---------|
+| Install deps | `pip install -e ".[dev]"` |
+| Unit tests | `pytest -q -m "not integration"` |
+| Dev server | `uvicorn extractor.api:app --reload --port 8000` |
+| Health check | `curl http://127.0.0.1:8000/health` |
+
+### LLM API key
+
+Extraction requires `OPENROUTER_API_KEY` (set in `.env`). Without a valid key the pipeline runs through schema-building but returns HTTP 401 from OpenRouter on the extraction step. Unit tests (`pytest -q -m "not integration"`) do not require any API key.
+
+### System dependency
+
+`python3.12-venv` must be installed for creating the virtualenv (`sudo apt-get install -y python3.12-venv` if missing).
